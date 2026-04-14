@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+:root {
+  --bg-desktop: #0b0d10;
+  --bg-panel: #16181d;
+  --bg-menubar: #1b1d24;
+  --border-color: #2b2e36;
+  --text-main: #e2e8f0;
+  --text-muted: #94a3b8;
+  --accent-rbr: #0000FF; 
+  --accent-mer: #00D2BE;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  background-color: var(--bg-desktop);
+  color: var(--text-main);
+  overflow: hidden; /* Desktop apps typically don't body-scroll */
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Custom Scrollbar for Treeview and Grid */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-desktop);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* React Plotly overrides */
+.js-plotly-plot .plotly .main-svg {
+  background: transparent !important;
+}
+
+.window-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 12px;
+  padding: 12px;
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.toolbar-select {
+  background-color: #0b0d10;
+  border: 1px solid #2b2e36;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: #e2e8f0;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.125rem;
+  cursor: pointer;
+  outline: none;
+}
+.toolbar-select:focus {
+  border-color: #3b82f6;
+}
+.toolbar-select:hover {
+  border-color: #6b7280;
+}
+
+.tree-item {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  cursor: pointer;
+  white-space: nowrap;
+  color: #d1d5db;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.tree-item:hover {
+  background-color: #2b2e36;
+  color: #ffffff;
+}
+.tree-item.active {
+  background-color: #2b2e36;
+  color: #ffffff;
+  border-left: 2px solid #3b82f6;
+}
