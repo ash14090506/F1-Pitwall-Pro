@@ -7,6 +7,9 @@ import TrackMap from './components/TrackMap';
 import PlaybackControls from './components/PlaybackControls';
 import ErrorBoundary from './components/ErrorBoundary';
 import LapComparisonModal from './components/LapComparisonModal';
+import TemperatureAnalysis from './components/TemperatureAnalysis';
+import PitstopAnalysis from './components/PitstopAnalysis';
+import FlagsTimeline from './components/FlagsTimeline';
 import { Play } from 'lucide-react';
 
 const API_BASE = 'http://127.0.0.1:8001/api';
@@ -74,6 +77,24 @@ function App() {
                   <WindowCard title="Track Analysis (Full Screen Module)" fullSpan={true} onClose={() => setActiveModal(null)}>
                       <TrackMap telemetryData={telemetries} playbackIndex={playbackIndex} allDrivers={drivers} />
                   </WindowCard>
+              );
+          case 'Temperature Analysis':
+              return (
+                  <WindowCard title="Temperature & Weather Extrapolation" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <TemperatureAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} />
+                  </WindowCard>
+              );
+          case 'Pitstop Analysis':
+              return (
+                  <div className="h-full w-full max-w-7xl relative mx-auto shadow-2xl">
+                    <PitstopAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} onClose={() => setActiveModal(null)} />
+                  </div>
+              );
+          case 'Accident & Flags Analysis':
+              return (
+                  <div className="h-full w-full max-w-3xl relative mx-auto shadow-2xl">
+                    <FlagsTimeline year={selectedYear} round={selectedRace} sessionType={selectedSession} onClose={() => setActiveModal(null)} />
+                  </div>
               );
           case 'Throttle/Brake Analysis':
               return (

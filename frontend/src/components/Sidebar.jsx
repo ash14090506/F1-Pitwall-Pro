@@ -33,7 +33,9 @@ const Sidebar = ({ activeModal, onMenuSelect }) => {
                     {expanded['overview'] && (
                         <div className="pl-6 border-l border-[#2b2e36] ml-3 mt-1 space-y-1">
                             <div className={`tree-item ${isActive('Track Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Track Analysis')}><Map size={14} /> Track Analysis</div>
+                            <div className={`tree-item ${isActive('Temperature Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Temperature Analysis')}><Activity size={14} /> Temperature Analysis</div>
                             <div className={`tree-item ${isActive('Pitstop Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Pitstop Analysis')}><Activity size={14} /> Pitstop Analysis</div>
+                            <div className={`tree-item ${isActive('Accident & Flags Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Accident & Flags Analysis')}><Zap size={14} /> Accident & Flags Analysis</div>
                             <div className={`tree-item ${isActive('Tire Strategy Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Tire Strategy Analysis')}><Zap size={14} /> Tire Strategy Analysis</div>
                         </div>
                     )}
