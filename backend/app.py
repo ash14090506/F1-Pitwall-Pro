@@ -217,6 +217,93 @@ def get_laps_summary(year: int, round: int, session_type: str, drivers: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/weather")
+def get_weather_data(year: int, round: int, session_type: str):
+    """Retrieve environmental weather data over the session time."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        if session.weather_data is None or session.weather_data.empty:
+            raise HTTPException(status_code=404, detail="Weather data not available.")
+            
+        weather = session.weather_data.copy()
+        weather["Time_s"] = weather["Time"].dt.total_seconds()
+        weather = weather.replace([np.inf, -np.inf, np.nan], None)
+        
+        data = {
+            "time": weather["Time_s"].tolist(),
+            "air_temp": weather["AirTemp"].tolist(),
+            "track_temp": weather["TrackTemp"].tolist(),
+            "humidity": weather["Humidity"].tolist(),
+            "pressure": weather["Pressure"].tolist(),
+            "rainfall": weather["Rainfall"].tolist()
+        }
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/pitstops")
+def get_pitstop_data(year: int, round: int, session_type: str):
+    """Retrieve pitstop history for all drivers from laps data."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        if session.laps is None or session.laps.empty:
+            raise HTTPException(status_code=404, detail="Lap data not available.")
+            
+        pit_laps = session.laps[pd.notnull(session.laps['PitInTime']) & pd.notnull(session.laps['PitOutTime'])].copy()
+        
+        if pit_laps.empty:
+            return {"pitstops": []}
+            
+        pit_laps['PitDuration'] = (pit_laps['PitOutTime'] - pit_laps['PitInTime']).dt.total_seconds()
+        
+        stops = []
+        for _, lap in pit_laps.iterrows():
+            stops.append({
+                "driver": str(lap["Driver"]),
+                "lap": int(lap["LapNumber"]),
+                "compound": str(lap["Compound"]),
+                "stint": int(lap["Stint"]) if pd.notnull(lap["Stint"]) else 0,
+                "pit_loss": float(lap["PitDuration"])
+            })
+            
+        return {"pitstops": stops}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/race_control")
+def get_race_control_messages(year: int, round: int, session_type: str):
+    """Retrieve flags and race control messages."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        rcm = session.race_control_messages
+        
+        if rcm is None or rcm.empty:
+            return {"messages": []}
+            
+        rcm_safe = rcm.copy()
+        
+        if 'Time' in rcm_safe.columns:
+            rcm_safe['Time_s'] = rcm_safe['Time'].dt.total_seconds()
+        else:
+            rcm_safe['Time_s'] = 0.0
+            
+        rcm_safe = rcm_safe.replace([np.inf, -np.inf, np.nan], None)
+        
+        messages = []
+        for _, msg in rcm_safe.iterrows():
+            messages.append({
+                "time": float(msg["Time_s"]) if pd.notnull(msg["Time_s"]) else 0.0,
+                "category": str(msg.get("Category", "Unknown")),
+                "message": str(msg.get("Message", "Unknown")),
+                "flag": str(msg.get("Flag", "Unknown")),
+                "status": str(msg.get("Status", "Unknown"))
+            })
+            
+        return {"messages": messages}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/clear_cache")
 def clear_backend_memory():
     """Clear all RAM-locked session variables to force re-parsing of any stuck datasets."""
