@@ -143,6 +143,45 @@ def get_fastest_lap_telemetry(year: int, round: int, session_type: str, driver: 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/laps_summary")
+def get_laps_summary(year: int, round: int, session_type: str, drivers: str):
+    """Retrieve Lap-by-Lap data for comparison."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        driver_list = [d.strip() for d in drivers.split(',') if d.strip()]
+        
+        result = {}
+        for drv in driver_list:
+            laps = session.laps.pick_driver(drv)
+            if laps.empty:
+                continue
+                
+            drv_laps = []
+            for _, lap in laps.iterrows():
+                def format_timedelta(td):
+                    if pd.isnull(td):
+                        return "-"
+                    total_seconds = td.total_seconds()
+                    minutes = int(total_seconds // 60)
+                    seconds = total_seconds % 60
+                    return f"{minutes}:{seconds:06.3f}"
+                
+                drv_laps.append({
+                    "LapNumber": int(lap["LapNumber"]) if pd.notnull(lap["LapNumber"]) else None,
+                    "LapTime": format_timedelta(lap["LapTime"]),
+                    "Sector1Time": format_timedelta(lap["Sector1Time"]),
+                    "Sector2Time": format_timedelta(lap["Sector2Time"]),
+                    "Sector3Time": format_timedelta(lap["Sector3Time"]),
+                    "Compound": str(lap["Compound"]) if pd.notnull(lap["Compound"]) else "-",
+                    "TyreLife": str(lap["TyreLife"]) if pd.notnull(lap["TyreLife"]) else "-",
+                    "IsPersonalBest": bool(lap["IsPersonalBest"]) if pd.notnull(lap["IsPersonalBest"]) else False
+                })
+            result[drv] = drv_laps
+            
+        return {"driver_laps": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/clear_cache")
 def clear_backend_memory():
     """Clear all RAM-locked session variables to force re-parsing of any stuck datasets."""
