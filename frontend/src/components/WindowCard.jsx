@@ -17,7 +17,7 @@ const WindowCard = ({ title, children, fullSpan = false, onClose }) => {
     if (isClosed) return null;
 
     return (
-        <div className={`bg-[#16181d] border border-[#2b2e36] flex flex-col shadow-lg overflow-hidden transition-all duration-150 ${fullSpan ? 'col-span-3' : maximized ? 'fixed inset-4 z-50 bg-[#16181d]' : minimized ? 'h-8 self-start' : 'h-full w-full'}`}>
+        <div className={`bg-[#16181d] border border-[#2b2e36] flex flex-col shadow-lg overflow-hidden transition-all duration-150 ${maximized ? 'fixed inset-4 z-50 bg-[#16181d]' : minimized ? 'h-8 self-start' : 'h-full w-full'} ${fullSpan ? 'col-span-3' : ''}`}>
             {/* Window Header */}
             <div className={`bg-[#1b1d24] border-b border-[#2b2e36] px-2 py-1 flex items-center justify-between select-none ${minimized ? 'cursor-pointer hover:bg-[#22252e]' : ''}`} onClick={() => minimized && setMinimized(false)}>
                 <div className="text-xs font-medium flex items-center gap-2">
