@@ -459,11 +459,12 @@ def get_traffic_data(year: int, round: int, session_type: str):
                     clean_air_laps += 1
                     
             if dirty_air_laps + clean_air_laps > 0:
+                perc = (dirty_air_laps / (dirty_air_laps + clean_air_laps)) * 100.0
                 traffic_stats.append({
                     "driver": str(drv),
                     "dirty_air_laps": dirty_air_laps,
                     "clean_air_laps": clean_air_laps,
-                    "dirty_air_percentage": round(dirty_air_laps / (dirty_air_laps + clean_air_laps) * 100, 1)
+                    "dirty_air_percentage": float(f"{perc:.1f}")
                 })
                 
         traffic_stats = sorted(traffic_stats, key=lambda x: x['dirty_air_percentage'], reverse=True)
