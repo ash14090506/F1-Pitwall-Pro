@@ -112,8 +112,12 @@ function App() {
           case 'Steering/Gear Analysis':
               return (
                   <div className="h-full w-full flex flex-col gap-3 relative">
-                      <WindowCard title="Gear Analysis" onClose={() => setActiveModal(null)}>
-                          <LineChart title="Gear Analysis" dataKey="nGear" yLabel="Gear" maxVal={8} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} />
+                      <button onClick={() => setActiveModal(null)} className="absolute -top-8 right-0 text-white hover:text-red-500 z-50 px-2 py-1 bg-red-900/50 rounded text-xs font-bold border border-red-500/50">✕ CLOSE WINDOW</button>
+                      <WindowCard title="Gear Analysis Module" fullSpan={true}>
+                          <LineChart title="nGear" dataKey="gear" yLabel="Gear" maxVal={9} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} />
+                      </WindowCard>
+                      <WindowCard title="RPM Analysis Module" fullSpan={true}>
+                          <LineChart title="RPM" yLabel="Revs" maxVal={13000} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} />
                       </WindowCard>
                   </div>
               );
