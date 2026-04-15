@@ -17,6 +17,7 @@ function App() {
   
   const [selectedYear, setSelectedYear] = useState('2026');
   const [selectedRace, setSelectedRace] = useState('');
+  const [selectedSession, setSelectedSession] = useState('R');
   const [selectedDrivers, setSelectedDrivers] = useState([]);
   
   const [loading, setLoading] = useState(false);
@@ -62,6 +63,7 @@ function App() {
                   <LapComparisonModal 
                       year={selectedYear} 
                       round={selectedRace} 
+                      sessionType={selectedSession}
                       drivers={selectedDrivers} 
                       onClose={() => setActiveModal(null)} 
                       onApplyLaps={handleLoadSpecificLaps}
@@ -159,7 +161,7 @@ function App() {
     setError(null);
     try {
       const requests = selectedDrivers.map(drv => 
-        axios.get(`${API_BASE}/telemetry/fastest?year=${selectedYear}&round=${selectedRace}&session_type=R&driver=${drv}`)
+        axios.get(`${API_BASE}/telemetry/fastest?year=${selectedYear}&round=${selectedRace}&session_type=${selectedSession}&driver=${drv}`)
       );
       const responses = await Promise.all(requests);
       const data = responses.map(res => res.data);
@@ -190,7 +192,7 @@ function App() {
     setError(null);
     try {
       const requests = Object.entries(lapSelections).map(([drv, lapNum]) => 
-        axios.get(`${API_BASE}/telemetry/lap?year=${selectedYear}&round=${selectedRace}&session_type=R&driver=${drv}&lap_number=${lapNum}`)
+        axios.get(`${API_BASE}/telemetry/lap?year=${selectedYear}&round=${selectedRace}&session_type=${selectedSession}&driver=${drv}&lap_number=${lapNum}`)
       );
       const responses = await Promise.all(requests);
       const data = responses.map(res => res.data);
@@ -279,7 +281,15 @@ function App() {
 
         <div className="flex items-center space-x-2">
           <span className="text-gray-400">Session:</span>
-          <select className="toolbar-select w-16" disabled><option>R</option></select>
+          <select className="toolbar-select w-16" value={selectedSession} onChange={e => setSelectedSession(e.target.value)}>
+            <option value="R">R</option>
+            <option value="S">S</option>
+            <option value="SQ">SQ</option>
+            <option value="Q">Q</option>
+            <option value="FP3">FP3</option>
+            <option value="FP2">FP2</option>
+            <option value="FP1">FP1</option>
+          </select>
         </div>
 
         <div className="w-px h-6 bg-[#2b2e36] mx-2"></div>
@@ -337,28 +347,28 @@ function App() {
           <div className="window-grid">
               
               {/* Top Row: Speed, Brake, Throttle */}
-              <WindowCard title={`Speed Analysis_${selectedYear}_R`}>
+              <WindowCard title={`Speed Analysis_${selectedYear}_${selectedSession}`}>
                 <LineChart title="Speed" yLabel="km/h" maxVal={350} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} />
               </WindowCard>
               
-              <WindowCard title={`Brake Analysis_${selectedYear}_R`}>
+              <WindowCard title={`Brake Analysis_${selectedYear}_${selectedSession}`}>
                 <LineChart title="Brake" yLabel="Pressure %" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} />
               </WindowCard>
 
-              <WindowCard title={`Throttle Analysis_${selectedYear}_R`}>
+              <WindowCard title={`Throttle Analysis_${selectedYear}_${selectedSession}`}>
                 <LineChart title="Throttle" yLabel="%" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} />
               </WindowCard>
 
               {/* Bottom Row: Gear, RPM, Track Map */}
-              <WindowCard title={`Gear Analysis_${selectedYear}_R`}>
+              <WindowCard title={`Gear Analysis_${selectedYear}_${selectedSession}`}>
                 <LineChart title="nGear" dataKey="gear" yLabel="Gear" maxVal={9} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} />
               </WindowCard>
 
-              <WindowCard title={`RPM Analysis_${selectedYear}_R`}>
+              <WindowCard title={`RPM Analysis_${selectedYear}_${selectedSession}`}>
                 <LineChart title="RPM" yLabel="Revs" maxVal={13000} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} />
               </WindowCard>
 
-              <WindowCard title={`Track Map_${selectedYear}_R`}>
+              <WindowCard title={`Track Map_${selectedYear}_${selectedSession}`}>
                  <TrackMap telemetryData={telemetries} playbackIndex={playbackIndex} allDrivers={drivers} />
               </WindowCard>
               
