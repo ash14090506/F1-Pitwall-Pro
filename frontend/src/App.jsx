@@ -99,6 +99,18 @@ function App() {
                     <FlagsTimeline year={selectedYear} round={selectedRace} sessionType={selectedSession} onClose={() => setActiveModal(null)} />
                   </div>
               );
+          case 'Tire Strategy Analysis':
+              return (
+                  <WindowCard title="Tire Strategy Allocation" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <TireStrategyGrid year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} />
+                  </WindowCard>
+              );
+          case 'Traffic Analysis':
+              return (
+                  <WindowCard title="Dirty Air & Traffic Heatmap" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <TrafficHeatmap year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} />
+                  </WindowCard>
+              );
           case 'Throttle/Brake Analysis':
               return (
                   <div className="h-full w-full flex flex-col gap-3 relative">
