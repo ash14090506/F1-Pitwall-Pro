@@ -5,7 +5,8 @@ session.load(telemetry=False, weather=False, messages=True)
 
 # Test Race Control Time
 rcm = session.race_control_messages.copy()
-rcm['Time_s'] = (rcm['Time'] - session.session_start_time).dt.total_seconds()
+rcm['Time_clean'] = pd.to_datetime(rcm['Time'])
+rcm['Time_s'] = (rcm['Time_clean'] - rcm['Time_clean'].min()).dt.total_seconds()
 print(rcm[['Time', 'Time_s']].head())
 
 # Test Pitstops
@@ -20,4 +21,4 @@ for _, lap in pit_out_laps.iterrows():
         pit_loss = (lap['PitOutTime'] - in_lap.iloc[0]['PitInTime']).total_seconds()
     stops.append(pit_loss)
 
-print(f"Sample pit losses: {stops[:5]}")
+print(f"Sample pit losses (seconds): {stops[:5]}")
