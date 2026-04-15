@@ -3,10 +3,11 @@ import axios from 'axios';
 
 const API_BASE = 'http://127.0.0.1:8001/api';
 
-const LapComparisonModal = ({ year, round, drivers, onClose }) => {
+const LapComparisonModal = ({ year, round, drivers, onClose, onApplyLaps }) => {
     const [lapData, setLapData] = useState({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [selectedLaps, setSelectedLaps] = useState({});
 
     useEffect(() => {
         if (!drivers || drivers.length === 0) return;
@@ -28,12 +29,29 @@ const LapComparisonModal = ({ year, round, drivers, onClose }) => {
         fetchLaps();
     }, [year, round, drivers]);
 
+    const handleLapClick = (drv, lapNumber) => {
+        setSelectedLaps(prev => ({
+            ...prev,
+            [drv]: lapNumber
+        }));
+    };
+
     return (
         <div className="h-full w-full bg-[#0b0d10] border border-[#2b2e36] flex flex-col relative font-sans text-gray-300 shadow-2xl">
             {/* Header */}
-            <div className="h-10 min-h-[40px] bg-[#16181d] border-b border-[#2b2e36] flex items-center justify-between px-4 sticky top-0 shrink-0">
+            <div className="h-12 min-h-[48px] bg-[#16181d] border-b border-[#2b2e36] flex items-center justify-between px-4 sticky top-0 shrink-0">
                 <span className="text-white font-bold tracking-widest text-sm text-blue-400 uppercase">Lap-by-Lap Comparison Matrix</span>
-                <button onClick={onClose} className="text-gray-400 hover:text-red-500 font-bold text-lg px-2 rounded hover:bg-red-900/30">✕</button>
+                
+                <div className="flex items-center gap-4 ml-auto mr-4">
+                    <button 
+                        onClick={() => onApplyLaps && onApplyLaps(selectedLaps)}
+                        disabled={Object.keys(selectedLaps).length === 0}
+                        className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-1.5 px-6 rounded-sm text-xs tracking-widest transition-colors shadow-lg"
+                    >
+                        PLOT SELECTED TELEMETRY
+                    </button>
+                    <button onClick={onClose} className="text-gray-400 hover:text-red-500 font-bold text-lg px-2 rounded hover:bg-red-900/30 transition-colors">✕</button>
+                </div>
             </div>
             
             {/* Context bar */}
@@ -54,8 +72,9 @@ const LapComparisonModal = ({ year, round, drivers, onClose }) => {
                 ) : (
                     drivers.map(drv => (
                         <div key={drv} className="flex-1 bg-[#16181d] border border-[#2b2e36] flex flex-col min-w-[300px] overflow-hidden shadow-xl rounded-sm">
-                            <div className="bg-[#1b1d24] text-white text-center font-black text-lg py-2 border-b border-[#2b2e36] shrink-0 tracking-widest">
+                            <div className="bg-[#1b1d24] text-white text-center font-black text-lg py-2 border-b border-[#2b2e36] shrink-0 tracking-widest relative">
                                 {drv}
+                                {selectedLaps[drv] && <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-green-400 bg-green-900/30 px-2 py-0.5 rounded border border-green-500/50 font-mono tracking-normal">LAP {selectedLaps[drv]}</span>}
                             </div>
                             <div className="flex-1 overflow-auto">
                                 <table className="w-full text-xs text-left">
@@ -71,12 +90,16 @@ const LapComparisonModal = ({ year, round, drivers, onClose }) => {
                                     </thead>
                                     <tbody>
                                         {(lapData[drv] || []).map((lap, i) => (
-                                            <tr key={i} className={`hover:bg-[#2b2e36] border-b border-[#2b2e36]/30 ${lap.IsPersonalBest ? 'bg-purple-900/20' : ''}`}>
-                                                <td className="p-2 text-gray-500 font-mono">{lap.LapNumber}</td>
-                                                <td className={`p-2 font-mono font-bold ${lap.IsPersonalBest ? 'text-purple-300' : 'text-gray-200'}`}>{lap.LapTime}</td>
-                                                <td className="p-2 font-mono text-gray-400">{lap.Sector1Time}</td>
-                                                <td className="p-2 font-mono text-gray-400">{lap.Sector2Time}</td>
-                                                <td className="p-2 font-mono text-gray-400">{lap.Sector3Time}</td>
+                                            <tr 
+                                                key={i} 
+                                                onClick={() => handleLapClick(drv, lap.LapNumber)}
+                                                className={`cursor-pointer border-b border-[#2b2e36]/30 transition-colors ${selectedLaps[drv] === lap.LapNumber ? 'bg-green-900/40 hover:bg-green-900/50' : lap.IsPersonalBest ? 'bg-purple-900/20 hover:bg-purple-900/30' : 'hover:bg-[#2b2e36]'}`}
+                                            >
+                                                <td className={`p-2 font-mono ${selectedLaps[drv] === lap.LapNumber ? 'text-green-300 font-bold' : 'text-gray-500'}`}>{lap.LapNumber}</td>
+                                                <td className={`p-2 font-mono font-bold ${selectedLaps[drv] === lap.LapNumber ? 'text-green-100' : lap.IsPersonalBest ? 'text-purple-300' : 'text-gray-200'}`}>{lap.LapTime}</td>
+                                                <td className={`p-2 font-mono ${selectedLaps[drv] === lap.LapNumber ? 'text-green-200' : 'text-gray-400'}`}>{lap.Sector1Time}</td>
+                                                <td className={`p-2 font-mono ${selectedLaps[drv] === lap.LapNumber ? 'text-green-200' : 'text-gray-400'}`}>{lap.Sector2Time}</td>
+                                                <td className={`p-2 font-mono ${selectedLaps[drv] === lap.LapNumber ? 'text-green-200' : 'text-gray-400'}`}>{lap.Sector3Time}</td>
                                                 <td className="p-2 flex gap-1">
                                                     <span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold ${lap.Compound === 'SOFT' ? 'bg-red-600 text-white' : lap.Compound === 'MEDIUM' ? 'bg-yellow-500 text-black' : lap.Compound === 'HARD' ? 'bg-gray-200 text-black' : 'bg-gray-700 text-white'}`} title={`Tyre Life: ${lap.TyreLife} laps`}>
                                                         {lap.Compound?.[0] || 'U'}
