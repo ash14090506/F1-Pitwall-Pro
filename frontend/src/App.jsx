@@ -152,6 +152,11 @@ function App() {
       console.error(err);
       setDrivers([]);
       setSelectedDrivers([]);
+      if (err.response && err.response.status === 500) {
+          setError(`The ${sessionType} session is completely unavailable or did not occur during this race weekend.`);
+      } else {
+          setError(`Failed to fetch drivers for the ${sessionType} session.`);
+      }
     }
   };
 
