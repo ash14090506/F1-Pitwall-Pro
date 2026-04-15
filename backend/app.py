@@ -376,6 +376,101 @@ def get_positions_data(year: int, round: int, session_type: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/tire_strategy")
+def get_tire_strategy(year: int, round: int, session_type: str):
+    """Retrieve tire stint strategies for visual whiteboard."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        if session.laps is None or session.laps.empty:
+            raise HTTPException(status_code=404, detail="Laps data not available.")
+            
+        driver_stints = []
+        for drv in session.laps['Driver'].unique():
+            drv_laps = session.laps.pick_driver(drv)
+            if drv_laps.empty: continue
+            
+            stints_groups = drv_laps.dropna(subset=['Stint']).groupby('Stint')
+            stints = []
+            
+            for stint, stint_df in stints_groups:
+                compound = str(stint_df['Compound'].iloc[0])
+                fresh = bool(stint_df['FreshTyre'].iloc[0]) if 'FreshTyre' in stint_df.columns and pd.notnull(stint_df['FreshTyre'].iloc[0]) else True
+                start_lap = int(stint_df['LapNumber'].min())
+                end_lap = int(stint_df['LapNumber'].max())
+                laps_length = end_lap - start_lap + 1
+                
+                stints.append({
+                    "stint": int(stint),
+                    "compound": compound,
+                    "fresh_tyre": fresh,
+                    "start_lap": start_lap,
+                    "end_lap": end_lap,
+                    "laps": laps_length
+                })
+                
+            if len(stints) > 0:
+                driver_stints.append({
+                    "driver": str(drv),
+                    "stints": stints
+                })
+                
+        driver_stints = sorted(driver_stints, key=lambda x: max(s['end_lap'] for s in x['stints']), reverse=True)
+        return {"driver_stints": driver_stints}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/traffic")
+def get_traffic_data(year: int, round: int, session_type: str):
+    """Retrieve dirty air / traffic metrics."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        if session.laps is None or session.laps.empty:
+            raise HTTPException(status_code=404, detail="Laps data not available.")
+            
+        DIRTY_AIR_THRESHOLD = 1.5 
+        
+        laps = session.laps.dropna(subset=['Time', 'Driver', 'LapNumber']).copy()
+        
+        lap_times = {}
+        for drv in laps['Driver'].unique():
+            drv_laps = laps[laps['Driver'] == drv]
+            lap_times[drv] = {int(row['LapNumber']): row['Time'].total_seconds() for _, row in drv_laps.iterrows()}
+            
+        traffic_stats = []
+        for drv in lap_times:
+            dirty_air_laps = 0
+            clean_air_laps = 0
+            
+            for lap_num, t_a in lap_times[drv].items():
+                is_dirty = False
+                for other_drv in lap_times:
+                    if other_drv == drv: continue
+                    t_b = lap_times[other_drv].get(lap_num)
+                    if t_b is not None:
+                        gap = t_a - t_b
+                        if 0 < gap <= DIRTY_AIR_THRESHOLD:
+                            is_dirty = True
+                            break
+                            
+                if is_dirty:
+                    dirty_air_laps += 1
+                else:
+                    clean_air_laps += 1
+                    
+            if dirty_air_laps + clean_air_laps > 0:
+                traffic_stats.append({
+                    "driver": str(drv),
+                    "dirty_air_laps": dirty_air_laps,
+                    "clean_air_laps": clean_air_laps,
+                    "dirty_air_percentage": round(dirty_air_laps / (dirty_air_laps + clean_air_laps) * 100, 1)
+                })
+                
+        traffic_stats = sorted(traffic_stats, key=lambda x: x['dirty_air_percentage'], reverse=True)
+        return {"traffic": traffic_stats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/clear_cache")
 def clear_backend_memory():
