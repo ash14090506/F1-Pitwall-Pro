@@ -143,6 +143,41 @@ def get_fastest_lap_telemetry(year: int, round: int, session_type: str, driver: 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/telemetry/lap")
+def get_lap_telemetry(year: int, round: int, session_type: str, driver: str, lap_number: int):
+    """Retrieve telemetry for a specific custom lap of a driver."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        
+        laps = session.laps.pick_driver(driver)
+        if laps.empty:
+            raise HTTPException(status_code=404, detail="No laps found for this driver.")
+            
+        lap = laps[laps['LapNumber'] == lap_number]
+        if lap.empty:
+            raise HTTPException(status_code=404, detail="Lap number not found.")
+            
+        lap = lap.iloc[0]
+        telemetry = lap.get_telemetry()
+        
+        telemetry = telemetry.replace([np.inf, -np.inf, np.nan], None)
+        
+        data = {
+            "distance": telemetry["Distance"].tolist(),
+            "x": telemetry["X"].tolist(),
+            "y": telemetry["Y"].tolist(),
+            "speed": telemetry["Speed"].tolist(),
+            "throttle": telemetry["Throttle"].tolist(),
+            "brake": telemetry["Brake"].tolist(),
+            "rpm": telemetry["RPM"].tolist(),
+            "gear": telemetry["nGear"].tolist(),
+            "drs": telemetry["DRS"].tolist(),
+            "lap_time": str(lap['LapTime'])
+        }
+        return {"driver": driver, "telemetry": data, "lap_number": lap_number}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/laps_summary")
 def get_laps_summary(year: int, round: int, session_type: str, drivers: str):
     """Retrieve Lap-by-Lap data for comparison."""
