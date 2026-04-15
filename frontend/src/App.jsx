@@ -298,9 +298,9 @@ function App() {
 
         <div className="flex items-center space-x-2">
           <span className="text-gray-400">Race:</span>
-          <select className="toolbar-select w-48" value={selectedRace} onChange={e => setSelectedRace(e.target.value)}>
-            {races.map(r => (
-              <option key={r.round} value={r.round}>{r.country} - {r.name}</option>
+          <select className="toolbar-select flex-1 max-w-[200px]" value={selectedRace} onChange={e => setSelectedRace(e.target.value)}>
+            {races.map((r, i) => (
+              <option key={i} value={r.round}>{r.country} - {r.name}</option>
             ))}
           </select>
         </div>
