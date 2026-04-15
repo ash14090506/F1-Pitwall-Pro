@@ -249,21 +249,24 @@ def get_pitstop_data(year: int, round: int, session_type: str):
         if session.laps is None or session.laps.empty:
             raise HTTPException(status_code=404, detail="Lap data not available.")
             
-        pit_laps = session.laps[pd.notnull(session.laps['PitInTime']) & pd.notnull(session.laps['PitOutTime'])].copy()
+        pit_laps = session.laps[pd.notnull(session.laps['PitOutTime'])].copy()
         
         if pit_laps.empty:
             return {"pitstops": []}
             
-        pit_laps['PitDuration'] = (pit_laps['PitOutTime'] - pit_laps['PitInTime']).dt.total_seconds()
-        
         stops = []
         for _, lap in pit_laps.iterrows():
+            in_lap = session.laps[(session.laps['Driver'] == lap['Driver']) & (session.laps['LapNumber'] == lap['LapNumber'] - 1)]
+            pit_loss = 0.0
+            if not in_lap.empty and pd.notnull(in_lap.iloc[0]['PitInTime']):
+                pit_loss = (lap['PitOutTime'] - in_lap.iloc[0]['PitInTime']).total_seconds()
+            
             stops.append({
                 "driver": str(lap["Driver"]),
-                "lap": int(lap["LapNumber"]),
+                "lap": int(lap["LapNumber"]) - 1,
                 "compound": str(lap["Compound"]),
                 "stint": int(lap["Stint"]) if pd.notnull(lap["Stint"]) else 0,
-                "pit_loss": float(lap["PitDuration"])
+                "pit_loss": float(pit_loss)
             })
             
         return {"pitstops": stops}
@@ -283,7 +286,11 @@ def get_race_control_messages(year: int, round: int, session_type: str):
         rcm_safe = rcm.copy()
         
         if 'Time' in rcm_safe.columns:
-            rcm_safe['Time_s'] = rcm_safe['Time'].dt.total_seconds()
+            rcm_safe['Time_clean'] = pd.to_datetime(rcm_safe['Time'])
+            if not rcm_safe['Time_clean'].empty:
+                rcm_safe['Time_s'] = (rcm_safe['Time_clean'] - rcm_safe['Time_clean'].min()).dt.total_seconds()
+            else:
+                rcm_safe['Time_s'] = 0.0
         else:
             rcm_safe['Time_s'] = 0.0
             
