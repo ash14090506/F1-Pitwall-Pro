@@ -51,6 +51,7 @@ const Sidebar = ({ activeModal, onMenuSelect }) => {
                         <div className="pl-6 border-l border-[#2b2e36] ml-3 mt-1 space-y-1">
                             <div className={`tree-item ${isActive('Detailed Lap Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Detailed Lap Analysis')}><FileSearch size={14} /> Detailed Lap Analysis</div>
                             <div className={`tree-item ${isActive('Driver Run Position') ? 'active' : ''}`} onClick={() => handleSelect('Driver Run Position')}><Activity size={14} /> Driver Run Position</div>
+                            <div className={`tree-item ${isActive('Traffic Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Traffic Analysis')}><Activity size={14} /> Traffic Analysis</div>
                             <div className={`tree-item ${isActive('Lap-by-Lap Comparison') ? 'active' : ''}`} onClick={() => handleSelect('Lap-by-Lap Comparison')}><FileSearch size={14} /> Lap-by-Lap Comparison</div>
                             <div className={`tree-item ${isActive('Throttle/Brake Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Throttle/Brake Analysis')}><Activity size={14} /> Throttle/Brake Analysis</div>
                             <div className={`tree-item ${isActive('Steering/Gear Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Steering/Gear Analysis')}><Settings size={14} /> Steering/Gear Analysis</div>
