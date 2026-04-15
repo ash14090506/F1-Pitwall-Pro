@@ -11,6 +11,8 @@ import TemperatureAnalysis from './components/TemperatureAnalysis';
 import PitstopAnalysis from './components/PitstopAnalysis';
 import FlagsTimeline from './components/FlagsTimeline';
 import DriverPositionChart from './components/DriverPositionChart';
+import TireStrategyGrid from './components/TireStrategyGrid';
+import TrafficHeatmap from './components/TrafficHeatmap';
 import { Play } from 'lucide-react';
 
 const API_BASE = 'http://127.0.0.1:8001/api';
