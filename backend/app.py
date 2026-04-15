@@ -310,6 +310,72 @@ def get_race_control_messages(year: int, round: int, session_type: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/circuit_info")
+def get_circuit_data(year: int, round: int, session_type: str):
+    """Retrieve circuit geometry and markers (DRS, Corners)."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        try:
+            circuit = session.get_circuit_info()
+        except Exception:
+            circuit = None
+        
+        if circuit is None:
+            raise HTTPException(status_code=404, detail="Circuit geometry not found.")
+            
+        corners_list = []
+        if hasattr(circuit, 'corners') and circuit.corners is not None and not circuit.corners.empty:
+            for _, c in circuit.corners.iterrows():
+                corners_list.append({
+                    "number": str(c.get("Number", "")),
+                    "letter": str(c.get("Letter", "")),
+                    "x": float(c.get("X", 0.0)),
+                    "y": float(c.get("Y", 0.0)),
+                    "angle": float(c.get("Angle", 0.0)),
+                    "distance": float(c.get("Distance", 0.0))
+                })
+                
+        rotation = float(circuit.rotation) / 180 * np.pi if hasattr(circuit, 'rotation') else 0.0
+        
+        return {
+            "corners": corners_list,
+            "rotation": rotation
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/positions")
+def get_positions_data(year: int, round: int, session_type: str):
+    """Retrieve lap-by-lap track positions for positional chart."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        if session.laps is None or session.laps.empty:
+            raise HTTPException(status_code=404, detail="Laps data not available for positions.")
+            
+        pos_data = []
+        for drv in session.laps['Driver'].unique():
+            drv_laps = session.laps.pick_driver(drv)
+            if drv_laps.empty: continue
+            
+            laps_list = []
+            positions_list = []
+            
+            for _, lap in drv_laps.iterrows():
+                if pd.notnull(lap.get('Position')) and pd.notnull(lap.get('LapNumber')):
+                    laps_list.append(int(lap['LapNumber']))
+                    positions_list.append(int(lap['Position']))
+                    
+            if len(laps_list) > 0:
+                pos_data.append({
+                    "driver": str(drv),
+                    "laps": laps_list,
+                    "positions": positions_list
+                })
+                
+        return {"driver_positions": pos_data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/clear_cache")
 def clear_backend_memory():
