@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const API_BASE = 'http://127.0.0.1:8001/api';
 
-const LapComparisonModal = ({ year, round, drivers, onClose, onApplyLaps }) => {
+const LapComparisonModal = ({ year, round, sessionType, drivers, onClose, onApplyLaps }) => {
     const [lapData, setLapData] = useState({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -17,7 +17,7 @@ const LapComparisonModal = ({ year, round, drivers, onClose, onApplyLaps }) => {
             setError(null);
             try {
                 const driverStr = drivers.join(',');
-                const res = await axios.get(`${API_BASE}/laps_summary?year=${year}&round=${round}&session_type=R&drivers=${driverStr}`);
+                const res = await axios.get(`${API_BASE}/laps_summary?year=${year}&round=${round}&session_type=${sessionType}&drivers=${driverStr}`);
                 setLapData(res.data.driver_laps || {});
             } catch (err) {
                 console.error(err);
@@ -27,7 +27,7 @@ const LapComparisonModal = ({ year, round, drivers, onClose, onApplyLaps }) => {
             }
         };
         fetchLaps();
-    }, [year, round, drivers]);
+    }, [year, round, sessionType, drivers]);
 
     const handleLapClick = (drv, lapNumber) => {
         setSelectedLaps(prev => ({
