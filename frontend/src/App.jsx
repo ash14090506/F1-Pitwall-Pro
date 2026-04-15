@@ -64,6 +64,7 @@ function App() {
                       round={selectedRace} 
                       drivers={selectedDrivers} 
                       onClose={() => setActiveModal(null)} 
+                      onApplyLaps={handleLoadSpecificLaps}
                   />
               );
           case 'Track Analysis':
@@ -177,6 +178,38 @@ function App() {
           setError(`Failed: ${err.response.data.detail}`);
       } else {
           setError("Failed to fetch telemetry data. FastF1 cache may still be spinning up or race data is unavailable.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoadSpecificLaps = async (lapSelections) => {
+    if (Object.keys(lapSelections).length === 0) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const requests = Object.entries(lapSelections).map(([drv, lapNum]) => 
+        axios.get(`${API_BASE}/telemetry/lap?year=${selectedYear}&round=${selectedRace}&session_type=R&driver=${drv}&lap_number=${lapNum}`)
+      );
+      const responses = await Promise.all(requests);
+      const data = responses.map(res => res.data);
+      setTelemetries(data);
+      
+      if (data.length > 0 && data[0].telemetry && data[0].telemetry.distance) {
+          const maxDist = Math.max(...data.map(d => d.telemetry.distance[d.telemetry.distance.length - 1] || 0));
+          const maxIdx = Math.max(...data.map(d => d.telemetry.distance.length - 1));
+          setMaxDistance(maxDist);
+          setMaxPlaybackIndex(maxIdx);
+          setPlaybackIndex(maxIdx);
+      }
+      setActiveModal(null); // Close modal automatically upon plotting
+    } catch (err) {
+      console.error(err);
+      if (err.response && err.response.data && err.response.data.detail) {
+          setError(`Failed: ${err.response.data.detail}`);
+      } else {
+          setError("Failed to fetch custom lap telemetry data.");
       }
     } finally {
       setLoading(false);
