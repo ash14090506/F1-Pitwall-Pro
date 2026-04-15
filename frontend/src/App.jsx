@@ -6,6 +6,7 @@ import LineChart from './components/LineChart';
 import TrackMap from './components/TrackMap';
 import PlaybackControls from './components/PlaybackControls';
 import ErrorBoundary from './components/ErrorBoundary';
+import LapComparisonModal from './components/LapComparisonModal';
 import { Play } from 'lucide-react';
 
 const API_BASE = 'http://127.0.0.1:8001/api';
@@ -56,6 +57,15 @@ function App() {
 
   const renderModalContent = () => {
       switch(activeModal) {
+          case 'Lap-by-Lap Comparison':
+              return (
+                  <LapComparisonModal 
+                      year={selectedYear} 
+                      round={selectedRace} 
+                      drivers={selectedDrivers} 
+                      onClose={() => setActiveModal(null)} 
+                  />
+              );
           case 'Track Analysis':
               return (
                   <WindowCard title="Track Analysis (Full Screen Module)" fullSpan={true} onClose={() => setActiveModal(null)}>
