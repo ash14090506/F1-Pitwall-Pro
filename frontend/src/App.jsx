@@ -117,11 +117,11 @@ function App() {
 
   useEffect(() => {
     if (selectedRace) {
-      fetchDrivers(selectedYear, selectedRace);
+      fetchDrivers(selectedYear, selectedRace, selectedSession);
       setTelemetries([]);
       setError(null);
     }
-  }, [selectedRace]);
+  }, [selectedRace, selectedSession]);
 
   const fetchRaces = async (year) => {
     try {
@@ -137,9 +137,9 @@ function App() {
     }
   };
 
-  const fetchDrivers = async (year, round) => {
+  const fetchDrivers = async (year, round, sessionType) => {
     try {
-      const res = await axios.get(`${API_BASE}/drivers?year=${year}&round=${round}&session_type=R`);
+      const res = await axios.get(`${API_BASE}/drivers?year=${year}&round=${round}&session_type=${sessionType}`);
       setDrivers(res.data.drivers);
       if (res.data.drivers.length >= 2) {
         setSelectedDrivers([res.data.drivers[0].abbreviation, res.data.drivers[1].abbreviation]);
