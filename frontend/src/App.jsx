@@ -39,6 +39,7 @@ function App() {
   const [playbackIndex, setPlaybackIndex] = useState(0);
   const [maxPlaybackIndex, setMaxPlaybackIndex] = useState(0);
   const [maxDistance, setMaxDistance] = useState(0);
+  const [globalHoverDistance, setGlobalHoverDistance] = useState(null);
 
   const renderMenu = (name, items) => (
     <div className="relative z-[100]">
@@ -116,10 +117,10 @@ function App() {
                   <div className="h-full w-full flex flex-col gap-3 relative">
                       <button onClick={() => setActiveModal(null)} className="absolute -top-8 right-0 text-white hover:text-red-500 z-50 px-2 py-1 bg-red-900/50 rounded text-xs font-bold border border-red-500/50">✕ CLOSE WINDOW</button>
                       <WindowCard title="Throttle High-Fidelity Module" fullSpan={true}>
-                          <LineChart title="Throttle" yLabel="%" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} />
+                          <LineChart title="Throttle" yLabel="%" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
                       </WindowCard>
                       <WindowCard title="Brake Pressure High-Fidelity Module" fullSpan={true}>
-                          <LineChart title="Brake" yLabel="Pressure %" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} />
+                          <LineChart title="Brake" yLabel="Pressure %" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
                       </WindowCard>
                   </div>
               );
@@ -128,10 +129,10 @@ function App() {
                   <div className="h-full w-full flex flex-col gap-3 relative">
                       <button onClick={() => setActiveModal(null)} className="absolute -top-8 right-0 text-white hover:text-red-500 z-50 px-2 py-1 bg-red-900/50 rounded text-xs font-bold border border-red-500/50">✕ CLOSE WINDOW</button>
                       <WindowCard title="Gear Analysis Module" fullSpan={true}>
-                          <LineChart title="nGear" dataKey="gear" yLabel="Gear" maxVal={9} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} />
+                          <LineChart title="nGear" dataKey="gear" yLabel="Gear" maxVal={9} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
                       </WindowCard>
                       <WindowCard title="RPM Analysis Module" fullSpan={true}>
-                          <LineChart title="RPM" yLabel="Revs" maxVal={13000} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} />
+                          <LineChart title="RPM" yLabel="Revs" maxVal={13000} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
                       </WindowCard>
                   </div>
               );
@@ -395,24 +396,24 @@ function App() {
               
               {/* Top Row: Speed, Brake, Throttle */}
               <WindowCard title={`Speed Analysis_${selectedYear}_${selectedSession}`}>
-                <LineChart title="Speed" yLabel="km/h" maxVal={350} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} />
+                <LineChart title="Speed" yLabel="km/h" maxVal={350} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
               </WindowCard>
               
               <WindowCard title={`Brake Analysis_${selectedYear}_${selectedSession}`}>
-                <LineChart title="Brake" yLabel="Pressure %" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} />
+                <LineChart title="Brake" yLabel="Pressure %" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
               </WindowCard>
 
               <WindowCard title={`Throttle Analysis_${selectedYear}_${selectedSession}`}>
-                <LineChart title="Throttle" yLabel="%" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} />
+                <LineChart title="Throttle" yLabel="%" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
               </WindowCard>
 
               {/* Bottom Row: Gear, RPM, Track Map */}
               <WindowCard title={`Gear Analysis_${selectedYear}_${selectedSession}`}>
-                <LineChart title="nGear" dataKey="gear" yLabel="Gear" maxVal={9} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} />
+                <LineChart title="nGear" dataKey="gear" yLabel="Gear" maxVal={9} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
               </WindowCard>
 
               <WindowCard title={`RPM Analysis_${selectedYear}_${selectedSession}`}>
-                <LineChart title="RPM" yLabel="Revs" maxVal={13000} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} />
+                <LineChart title="RPM" yLabel="Revs" maxVal={13000} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
               </WindowCard>
 
               <WindowCard title={`Track Map_${selectedYear}_${selectedSession}`}>
