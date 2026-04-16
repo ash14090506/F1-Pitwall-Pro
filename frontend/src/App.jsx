@@ -20,6 +20,7 @@ import LapTimeBoxPlot from './components/LapTimeBoxPlot';
 import PedalBehavior from './components/PedalBehavior';
 import ThrottleCornerAnalysis from './components/ThrottleCornerAnalysis';
 import LongRunAnalysis from './components/LongRunAnalysis';
+import IdealLapRanking from './components/IdealLapRanking';
 import { Play } from 'lucide-react';
 
 const API_BASE = 'http://127.0.0.1:8001/api';
@@ -200,6 +201,12 @@ function App() {
                           <DeltaAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} selectedDrivers={selectedDrivers} />
                       </WindowCard>
                   </div>
+              );
+          case 'Ideal Lap Ranking':
+              return (
+                  <WindowCard title="Ideal Lap & Sector Comparison" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <IdealLapRanking year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} />
+                  </WindowCard>
               );
           default:
               return (

@@ -743,6 +743,87 @@ def get_long_run_analysis(year: int, round: int, session_type: str, drivers: str
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.get("/api/ideal_lap")
+def get_ideal_lap_ranking(year: int, round: int, session_type: str):
+    """Compute theoretical best lap for every driver by summing best S1+S2+S3."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        all_laps = session.laps.dropna(subset=['Sector1Time', 'Sector2Time', 'Sector3Time'])
+        
+        if all_laps.empty:
+            raise HTTPException(status_code=404, detail="No sector data available.")
+        
+        # Overall best sectors across ALL drivers
+        overall_best_s1 = all_laps['Sector1Time'].min().total_seconds()
+        overall_best_s2 = all_laps['Sector2Time'].min().total_seconds()
+        overall_best_s3 = all_laps['Sector3Time'].min().total_seconds()
+        
+        # Session fastest actual lap
+        session_fastest_lap = None
+        valid_laps = session.laps.dropna(subset=['LapTime'])
+        if not valid_laps.empty:
+            session_fastest_lap = valid_laps['LapTime'].min().total_seconds()
+        
+        drivers_data = []
+        for drv in all_laps['Driver'].unique():
+            drv_laps = all_laps[all_laps['Driver'] == drv]
+            
+            best_s1 = drv_laps['Sector1Time'].min().total_seconds()
+            best_s2 = drv_laps['Sector2Time'].min().total_seconds()
+            best_s3 = drv_laps['Sector3Time'].min().total_seconds()
+            ideal_lap = best_s1 + best_s2 + best_s3
+            
+            # Driver's actual fastest lap
+            drv_all = session.laps.pick_driver(drv).dropna(subset=['LapTime'])
+            actual_fastest = drv_all['LapTime'].min().total_seconds() if not drv_all.empty else None
+            
+            # Gap = actual fastest - ideal (time left on the table)
+            gap = (actual_fastest - ideal_lap) if actual_fastest else None
+            
+            # Gap to session fastest
+            gap_to_session = (ideal_lap - session_fastest_lap) if session_fastest_lap else None
+            
+            # Sector deltas vs overall best
+            s1_delta = best_s1 - overall_best_s1
+            s2_delta = best_s2 - overall_best_s2
+            s3_delta = best_s3 - overall_best_s3
+            
+            # Check if this driver holds the overall best in each sector
+            s1_is_best = abs(s1_delta) < 0.001
+            s2_is_best = abs(s2_delta) < 0.001
+            s3_is_best = abs(s3_delta) < 0.001
+            
+            drivers_data.append({
+                "driver": str(drv),
+                "best_s1": float(best_s1),
+                "best_s2": float(best_s2),
+                "best_s3": float(best_s3),
+                "ideal_lap": float(ideal_lap),
+                "actual_fastest": float(actual_fastest) if actual_fastest else None,
+                "gap": float(gap) if gap else None,
+                "gap_to_session_fastest": float(gap_to_session) if gap_to_session else None,
+                "s1_delta": float(s1_delta),
+                "s2_delta": float(s2_delta),
+                "s3_delta": float(s3_delta),
+                "s1_is_best": s1_is_best,
+                "s2_is_best": s2_is_best,
+                "s3_is_best": s3_is_best
+            })
+        
+        # Sort by ideal lap time
+        drivers_data.sort(key=lambda x: x['ideal_lap'])
+        
+        return {
+            "ranking": drivers_data,
+            "session_fastest": float(session_fastest_lap) if session_fastest_lap else None,
+            "overall_best_s1": float(overall_best_s1),
+            "overall_best_s2": float(overall_best_s2),
+            "overall_best_s3": float(overall_best_s3)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/clear_cache")
 def clear_backend_memory():
     """Clear all RAM-locked session variables to force re-parsing of any stuck datasets."""
