@@ -15,6 +15,11 @@ import TireStrategyGrid from './components/TireStrategyGrid';
 import TrafficHeatmap from './components/TrafficHeatmap';
 import DeltaAnalysis from './components/DeltaAnalysis';
 import AccelerationChart from './components/AccelerationChart';
+import DetailedLapData from './components/DetailedLapData';
+import LapTimeBoxPlot from './components/LapTimeBoxPlot';
+import PedalBehavior from './components/PedalBehavior';
+import ThrottleCornerAnalysis from './components/ThrottleCornerAnalysis';
+import LongRunAnalysis from './components/LongRunAnalysis';
 import { Play } from 'lucide-react';
 
 const API_BASE = 'http://127.0.0.1:8001/api';
@@ -66,7 +71,38 @@ function App() {
   );
 
   const renderModalContent = () => {
-      switch(activeModal) {
+      switch (activeModal) {
+          case 'Lap Time Box Plot':
+              return (
+                  <WindowCard title="Lap Time Consistency (Box Plot)" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <LapTimeBoxPlot year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />
+                  </WindowCard>
+              );
+          case 'Long Run Analysis':
+              return (
+                  <WindowCard title="FP2 Long Run Analysis & Fuel Correction" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <LongRunAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />
+                  </WindowCard>
+              );
+          case 'Pedal Behavior Analysis':
+              return (
+                  <WindowCard title="Pre-Apex Pedal Behavior Mapping" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <PedalBehavior year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />
+                  </WindowCard>
+              );
+          case 'Throttle Corner Analysis':
+              return (
+                  <WindowCard title="Throttle vs Detected Corners" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <ThrottleCornerAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />
+                  </WindowCard>
+              );
+          case 'Detailed Lap Analysis':
+              // Overwriting the old Grid view with the new 3.1 Data Table, as Grid stands firmly underneath
+              return (
+                  <WindowCard title="Detailed Lap Data Matrix" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <DetailedLapData year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} />
+                  </WindowCard>
+              );
           case 'Lap-by-Lap Comparison':
               return (
                   <LapComparisonModal 

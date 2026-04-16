@@ -561,6 +561,188 @@ def get_traffic_data(year: int, round: int, session_type: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/laps")
+def get_laps_data(year: int, round: int, session_type: str, drivers: str):
+    """Retrieve detailed lap data for selected drivers (Detailed Lap Data & Box Plot)."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        dlists = [d.strip() for d in drivers.split(',')]
+        
+        all_laps = []
+        for drv in dlists:
+            # We want to catch the case where laps aren't available for a driver
+            drv_laps = session.laps.pick_driver(drv)
+            if drv_laps.empty:
+                continue
+                
+            for _, row in drv_laps.iterrows():
+                # Skip totally invalid laps for robustness
+                if pd.isnull(row.get('LapTime')):
+                    lap_time_str = None
+                    lap_time_sec = None
+                else:
+                    lap_time_str = str(row['LapTime']).split('0 days ')[-1]
+                    lap_time_sec = row['LapTime'].total_seconds()
+                    
+                s1 = row.get('Sector1Time')
+                s2 = row.get('Sector2Time')
+                s3 = row.get('Sector3Time')
+                    
+                all_laps.append({
+                    "driver": drv,
+                    "lap_number": int(row['LapNumber']),
+                    "lap_time_str": lap_time_str,
+                    "lap_time_sec": lap_time_sec,
+                    "s1_sec": s1.total_seconds() if pd.notnull(s1) else None,
+                    "s2_sec": s2.total_seconds() if pd.notnull(s2) else None,
+                    "s3_sec": s3.total_seconds() if pd.notnull(s3) else None,
+                    "compound": str(row.get('Compound', 'UNKNOWN')),
+                    "tyre_life": float(row.get('TyreLife', 0)),
+                    "is_personal_best": bool(row.get('IsPersonalBest', False)),
+                    "pit_out_time": str(row.get('PitOutTime')) if pd.notnull(row.get('PitOutTime')) else None,
+                    "pit_in_time": str(row.get('PitInTime')) if pd.notnull(row.get('PitInTime')) else None,
+                    "speed_st": float(row.get('SpeedST')) if pd.notnull(row.get('SpeedST')) else None,
+                })
+        return {"laps": all_laps}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/telemetry/pedal_behavior")
+def get_pedal_behavior(year: int, round: int, session_type: str, drivers: str):
+    """Compute Throttle Only, Brake Only, Trail Braking, and Coasting percentages."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        dlists = [d.strip() for d in drivers.split(',')]
+        
+        results = []
+        for drv in dlists:
+            drv_laps = session.laps.pick_driver(drv)
+            fastest_lap = drv_laps.pick_fastest()
+            if fastest_lap.empty or pd.isnull(fastest_lap['LapTime']):
+                continue
+                
+            tel = fastest_lap.get_telemetry()
+            
+            throttle_val = tel['Throttle'] > 0
+            brake_val = tel['Brake'] > 0
+            
+            total_points = len(tel)
+            if total_points == 0: continue
+            
+            throttle_only_pts = ((throttle_val) & (~brake_val)).sum()
+            brake_only_pts = ((~throttle_val) & (brake_val)).sum()
+            trail_pts = ((throttle_val) & (brake_val)).sum()
+            coast_pts = ((~throttle_val) & (~brake_val)).sum()
+            
+            results.append({
+                "driver": drv,
+                "throttle_only": float((throttle_only_pts / total_points) * 100),
+                "brake_only": float((brake_only_pts / total_points) * 100),
+                "trail_braking": float((trail_pts / total_points) * 100),
+                "coasting": float((coast_pts / total_points) * 100)
+            })
+            
+        return {"pedal_behavior": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/telemetry/corners")
+def get_corners_heuristic(year: int, round: int, session_type: str, drivers: str):
+    """Algorithm defining 'Corners' by speed drops < 160km/h + brake."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        dlists = [d.strip() for d in drivers.split(',')]
+        
+        results = []
+        for drv in dlists:
+            drv_laps = session.laps.pick_driver(drv)
+            fastest_lap = drv_laps.pick_fastest()
+            if fastest_lap.empty or pd.isnull(fastest_lap['LapTime']): continue
+                
+            tel = fastest_lap.get_telemetry()
+            
+            corners = []
+            in_corner = False
+            current_corner_throttle = []
+            current_corner_speed = []
+            current_corner_distance = []
+            
+            for index, row in tel.iterrows():
+                is_c = (row['Speed'] < 160) and (row['Brake'] > 0)
+                if is_c:
+                    if not in_corner:
+                        in_corner = True
+                        current_corner_throttle = []
+                        current_corner_speed = []
+                        current_corner_distance = []
+                    current_corner_throttle.append(row['Throttle'])
+                    current_corner_speed.append(row['Speed'])
+                    current_corner_distance.append(row['Distance'])
+                else:
+                    if in_corner:
+                        in_corner = False
+                        if len(current_corner_throttle) > 5: # Filter out noise
+                            corners.append({
+                                "start_dist": float(min(current_corner_distance)),
+                                "end_dist": float(max(current_corner_distance)),
+                                "min_speed": float(min(current_corner_speed)),
+                                "avg_throttle": float(sum(current_corner_throttle)/len(current_corner_throttle))
+                            })
+                            
+            if len(corners) > 0:
+                results.append({
+                    "driver": drv,
+                    "corners": corners
+                })
+                
+        return {"corner_throttle": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/telemetry/long_run")
+def get_long_run_analysis(year: int, round: int, session_type: str, drivers: str):
+    """Calculates Fuel-Corrected Lap Time (Estimated 0.05s/lap weight shed)."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        dlists = [d.strip() for d in drivers.split(',')]
+        results = []
+        FUEL_BURN_COEFFICIENT = 0.05
+        
+        for drv in dlists:
+            drv_laps = session.laps.pick_driver(drv)
+            if drv_laps.empty: continue
+            
+            # Pick quick laps to eliminate in/out and SC
+            drv_laps = drv_laps.pick_quicklaps()
+            
+            lap_data = []
+            drv_laps = drv_laps.sort_values(by="LapNumber")
+            
+            if drv_laps.empty: continue
+            
+            start_lap_num = drv_laps['LapNumber'].iloc[0]
+            for _, row in drv_laps.iterrows():
+                if pd.isnull(row['LapTime']): continue
+                
+                lap_num = row['LapNumber']
+                raw_sec = row['LapTime'].total_seconds()
+                
+                fuel_correction = (lap_num - start_lap_num) * FUEL_BURN_COEFFICIENT
+                corrected_sec = raw_sec + fuel_correction 
+                
+                lap_data.append({
+                    "lap_number": int(lap_num),
+                    "raw_time": float(raw_sec),
+                    "corrected_time": float(corrected_sec)
+                })
+                
+            if len(lap_data) > 0:
+                results.append({"driver": drv, "laps": lap_data})
+                
+        return {"long_runs": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/clear_cache")
 def clear_backend_memory():
     """Clear all RAM-locked session variables to force re-parsing of any stuck datasets."""

@@ -14,7 +14,7 @@ const Sidebar = ({ activeModal, onMenuSelect }) => {
     };
 
     const handleSelect = (moduleName) => {
-        if (onMenuSelect) onMenuSelect(moduleName === 'Detailed Lap Analysis' ? null : moduleName);
+        if (onMenuSelect) onMenuSelect(moduleName);
     };
 
     return (
@@ -50,13 +50,17 @@ const Sidebar = ({ activeModal, onMenuSelect }) => {
                     {expanded['performance'] && (
                         <div className="pl-6 border-l border-[#2b2e36] ml-3 mt-1 space-y-1">
                             <div className={`tree-item ${isActive('Detailed Lap Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Detailed Lap Analysis')}><FileSearch size={14} /> Detailed Lap Analysis</div>
+                            <div className={`tree-item ${isActive('Lap Time Box Plot') ? 'active' : ''}`} onClick={() => handleSelect('Lap Time Box Plot')}><Activity size={14} /> Lap Time Box Plot</div>
+                            <div className={`tree-item ${isActive('Long Run Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Long Run Analysis')}><Activity size={14} /> Long Run Analysis</div>
+                            <div className={`tree-item ${isActive('Pedal Behavior Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Pedal Behavior Analysis')}><Activity size={14} /> Pedal Behavior Analysis</div>
+                            <div className={`tree-item ${isActive('Throttle Corner Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Throttle Corner Analysis')}><Map size={14} /> Throttle Corner Analysis</div>
                             <div className={`tree-item ${isActive('Driver Run Position') ? 'active' : ''}`} onClick={() => handleSelect('Driver Run Position')}><Activity size={14} /> Driver Run Position</div>
                             <div className={`tree-item ${isActive('Traffic Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Traffic Analysis')}><Activity size={14} /> Traffic Analysis</div>
                             <div className={`tree-item ${isActive('Lap-by-Lap Comparison') ? 'active' : ''}`} onClick={() => handleSelect('Lap-by-Lap Comparison')}><FileSearch size={14} /> Lap-by-Lap Comparison</div>
                             <div className={`tree-item ${isActive('Throttle/Brake Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Throttle/Brake Analysis')}><Activity size={14} /> Throttle/Brake Analysis</div>
                             <div className={`tree-item ${isActive('Steering/Gear Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Steering/Gear Analysis')}><Settings size={14} /> Steering/Gear Analysis</div>
-                            <div className={`tree-item ${isActive('DRS & Acceleration')} ? 'active' : ''}`} onClick={() => handleSelect('DRS & Acceleration')}><Activity size={14} /> DRS & Acceleration</div>
-                            <div className={`tree-item ${isActive('Delta Analysis')} ? 'active' : ''}`} onClick={() => handleSelect('Delta Analysis')}><Activity size={14} /> Delta Analysis</div>
+                            <div className={`tree-item ${isActive('DRS & Acceleration') ? 'active' : ''}`} onClick={() => handleSelect('DRS & Acceleration')}><Activity size={14} /> DRS & Acceleration</div>
+                            <div className={`tree-item ${isActive('Delta Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Delta Analysis')}><Activity size={14} /> Delta Analysis</div>
                         </div>
                     )}
                 </div>
