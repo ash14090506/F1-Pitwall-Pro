@@ -11,8 +11,10 @@ const DeltaAnalysis = ({ year, round, sessionType, allDrivers, selectedDrivers }
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    const refDriver = selectedDrivers.length > 0 ? selectedDrivers[0] : null;
-    const compDrivers = selectedDrivers.slice(1);
+    const [userRefDriver, setUserRefDriver] = useState(null);
+
+    const refDriver = selectedDrivers.includes(userRefDriver) ? userRefDriver : (selectedDrivers.length > 0 ? selectedDrivers[0] : null);
+    const compDrivers = selectedDrivers.filter(d => d !== refDriver);
 
     useEffect(() => {
         if (!refDriver || compDrivers.length === 0) {
@@ -128,9 +130,18 @@ const DeltaAnalysis = ({ year, round, sessionType, allDrivers, selectedDrivers }
     };
 
     return (
-        <div className="flex flex-col h-full w-full gap-2 relative">
-            <div className="absolute top-2 left-4 z-50 text-xs font-bold text-gray-300 bg-[#0b0d10] px-2 border-l-2 border-blue-500 shadow-md">
-                Reference: <span className="text-white">{refDriver}</span>
+        <div className="flex flex-col h-full w-full gap-2 relative bg-[#0b0d10] pt-2">
+            <div className="flex items-center px-4 gap-2 text-xs font-bold text-gray-300">
+                <span>Reference Driver:</span>
+                <select 
+                    value={refDriver || ''} 
+                    onChange={e => setUserRefDriver(e.target.value)}
+                    className="bg-[#1b1d24] text-white border border-[#2b2e36] px-2 py-1 rounded outline-none focus:border-blue-500"
+                >
+                    {selectedDrivers.map(d => (
+                        <option key={d} value={d}>{d}</option>
+                    ))}
+                </select>
             </div>
             <div className="flex-1 bg-[#16181d] border border-[#2b2e36] rounded shadow-lg overflow-hidden flex flex-col relative">
                 <div className="h-6 bg-[#2b2e36]/30 border-b border-[#2b2e36] px-2 flex items-center text-xs font-semibold text-gray-300">
