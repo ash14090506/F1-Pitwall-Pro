@@ -4,7 +4,7 @@ import ReactPlot from 'react-plotly.js';
 // Safely extract the default export due to Vite/CommonJS interop quirks with react-plotly.js
 const Plot = ReactPlot.default || ReactPlot;
 
-const LineChart = ({ title, dataKey, yLabel, telemetryData, maxVal, allDrivers, playbackIndex, fixedXMax }) => {
+const LineChart = ({ title, dataKey, yLabel, telemetryData, maxVal, allDrivers, playbackIndex, fixedXMax, hoverDistance, onHoverChange }) => {
     // If no data, render skeleton
     if (!telemetryData || telemetryData.length === 0) {
         return <div className="w-full h-full flex items-center justify-center text-gray-600 text-xs">Waiting for telemetry...</div>;
@@ -72,6 +72,26 @@ const LineChart = ({ title, dataKey, yLabel, telemetryData, maxVal, allDrivers, 
                     title: { text: yLabel, font: { size: 10, color: '#64748b' } },
                     showgrid: true, gridcolor: '#2b2e36', zeroline: false, tickfont: { color: '#64748b' },
                     range: maxVal ? [0, maxVal] : undefined
+                },
+                shapes: hoverDistance !== undefined && hoverDistance !== null ? [
+                    {
+                        type: 'line',
+                        x0: hoverDistance,
+                        x1: hoverDistance,
+                        y0: 0,
+                        y1: 1,
+                        yref: 'paper',
+                        line: {
+                            color: 'rgba(239, 68, 68, 0.8)',
+                            width: 1,
+                            dash: 'dash'
+                        }
+                    }
+                ] : []
+            }}
+            onHover={(e) => {
+                if (e.points && e.points.length > 0 && onHoverChange) {
+                    onHoverChange(e.points[0].x);
                 }
             }}
             useResizeHandler={true}
