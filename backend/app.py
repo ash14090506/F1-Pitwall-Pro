@@ -107,6 +107,37 @@ def get_parsed_session(year: int, round: int, session_type: str):
             
         return loaded_sessions[key]
 
+def process_telemetry_data(telemetry):
+    # Calculate Longitudinal and Lateral Acceleration
+    try:
+        # Time and Speed delta for Lon_Accel
+        telemetry['Time_s'] = telemetry['Time'].dt.total_seconds()
+        dt = telemetry['Time_s'].diff()
+        dv = telemetry['Speed'].diff() / 3.6  # km/h to m/s
+        telemetry['Lon_Accel'] = (dv / dt) / 9.81
+        telemetry['Lon_Accel'] = telemetry['Lon_Accel'].fillna(0)
+        
+        # Track curvature for Lat_Accel
+        dx = telemetry['X'].diff()
+        dy = telemetry['Y'].diff()
+        # Smooth GPS position noise
+        dx_smooth = dx.rolling(window=5, center=True, min_periods=1).mean()
+        dy_smooth = dy.rolling(window=5, center=True, min_periods=1).mean()
+        d2x = dx_smooth.diff()
+        d2y = dy_smooth.diff()
+        
+        # R = ((dx^2 + dy^2)^1.5) / |dx * d2y - dy * d2x|
+        R = ((dx_smooth**2 + dy_smooth**2)**1.5) / (np.abs(dx_smooth * d2y - dy_smooth * d2x) + 1e-6)
+        v_ms = telemetry['Speed'] / 3.6
+        telemetry['Lat_Accel'] = (v_ms**2 / R) / 9.81
+        # Clip absurd outliers resulting from tight slow corners where dx/dy ~= 0
+        telemetry['Lat_Accel'] = telemetry['Lat_Accel'].clip(-6.0, 6.0).fillna(0)
+    except Exception as e:
+        print(f"Failed to calculate acceleration: {e}")
+        telemetry['Lon_Accel'] = 0.0
+        telemetry['Lat_Accel'] = 0.0
+        
+    return telemetry
 
 @app.get("/api/telemetry/fastest")
 def get_fastest_lap_telemetry(year: int, round: int, session_type: str, driver: str):
@@ -123,6 +154,7 @@ def get_fastest_lap_telemetry(year: int, round: int, session_type: str, driver: 
             raise HTTPException(status_code=404, detail="No valid fastest lap time found.")
             
         telemetry = fastest_lap.get_telemetry()
+        telemetry = process_telemetry_data(telemetry)
         
         # Replace NaNs with None for JSON serialization
         telemetry = telemetry.replace([np.inf, -np.inf, np.nan], None)
@@ -137,6 +169,8 @@ def get_fastest_lap_telemetry(year: int, round: int, session_type: str, driver: 
             "rpm": telemetry["RPM"].tolist(),
             "gear": telemetry["nGear"].tolist(),
             "drs": telemetry["DRS"].tolist(),
+            "lon_accel": telemetry["Lon_Accel"].tolist(),
+            "lat_accel": telemetry["Lat_Accel"].tolist(),
             "lap_time": str(fastest_lap['LapTime'])
         }
         return {"driver": driver, "telemetry": data}
@@ -159,6 +193,7 @@ def get_lap_telemetry(year: int, round: int, session_type: str, driver: str, lap
             
         lap = lap.iloc[0]
         telemetry = lap.get_telemetry()
+        telemetry = process_telemetry_data(telemetry)
         
         telemetry = telemetry.replace([np.inf, -np.inf, np.nan], None)
         
@@ -172,9 +207,62 @@ def get_lap_telemetry(year: int, round: int, session_type: str, driver: str, lap
             "rpm": telemetry["RPM"].tolist(),
             "gear": telemetry["nGear"].tolist(),
             "drs": telemetry["DRS"].tolist(),
+            "lon_accel": telemetry["Lon_Accel"].tolist(),
+            "lat_accel": telemetry["Lat_Accel"].tolist(),
             "lap_time": str(lap['LapTime'])
         }
         return {"driver": driver, "telemetry": data, "lap_number": lap_number}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/telemetry/delta")
+def get_telemetry_delta(year: int, round: int, session_type: str, ref_driver: str, comp_driver: str):
+    """Retrieve time and speed delta between a reference driver and a comparison driver on their fastest laps."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        
+        ref_laps = session.laps.pick_driver(ref_driver)
+        comp_laps = session.laps.pick_driver(comp_driver)
+        
+        if ref_laps.empty or comp_laps.empty:
+            raise HTTPException(status_code=404, detail="Laps not found for one or more drivers.")
+            
+        ref_lap = ref_laps.pick_fastest()
+        comp_lap = comp_laps.pick_fastest()
+        
+        ref_tel = ref_lap.get_telemetry()
+        comp_tel = comp_lap.get_telemetry()
+        
+        # Use simple distance interpolation (since fastf1 delta_time is deprecated)
+        ref_dist = ref_tel['Distance'].values
+        ref_time = ref_tel['Time'].dt.total_seconds().values
+        ref_speed = ref_tel['Speed'].values
+        
+        comp_dist = comp_tel['Distance'].values
+        comp_time = comp_tel['Time'].dt.total_seconds().values
+        comp_speed = comp_tel['Speed'].values
+        
+        # Interpolate comp_time and comp_speed onto ref_dist
+        comp_time_interp = np.interp(ref_dist, comp_dist, comp_time)
+        comp_speed_interp = np.interp(ref_dist, comp_dist, comp_speed)
+        
+        delta_time = comp_time_interp - ref_time
+        delta_speed = comp_speed_interp - ref_speed
+        
+        # To avoid json serialization issues with numpy types
+        data = {
+            "distance": ref_dist.tolist(),
+            "delta_time": delta_time.tolist(),
+            "delta_speed": delta_speed.tolist(),
+            "ref_speed": ref_speed.tolist(),
+            "comp_speed": comp_speed_interp.tolist()
+        }
+        
+        return {
+            "ref_driver": ref_driver,
+            "comp_driver": comp_driver,
+            "delta": data
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
