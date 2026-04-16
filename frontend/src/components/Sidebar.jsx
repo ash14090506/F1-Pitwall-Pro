@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { ChevronRight, ChevronDown, Activity, Settings, Zap, Map, FileSearch } from 'lucide-react';
+import { ChevronRight, ChevronDown, Activity, Settings, Zap, Map, FileSearch, Target } from 'lucide-react';
 
 const Sidebar = ({ activeModal, onMenuSelect }) => {
-    const [expanded, setExpanded] = useState({ 'overview': true, 'performance': true });
+    const [expanded, setExpanded] = useState({ 'overview': true, 'performance': true, 'ideal': true });
 
     const toggle = (sec) => {
         setExpanded(prev => ({ ...prev, [sec]: !prev[sec] }));
@@ -61,6 +61,20 @@ const Sidebar = ({ activeModal, onMenuSelect }) => {
                             <div className={`tree-item ${isActive('Steering/Gear Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Steering/Gear Analysis')}><Settings size={14} /> Steering/Gear Analysis</div>
                             <div className={`tree-item ${isActive('DRS & Acceleration') ? 'active' : ''}`} onClick={() => handleSelect('DRS & Acceleration')}><Activity size={14} /> DRS & Acceleration</div>
                             <div className={`tree-item ${isActive('Delta Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Delta Analysis')}><Activity size={14} /> Delta Analysis</div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Ideal Lap & Sectors Section */}
+                <div className="mt-2">
+                    <div className="flex items-center px-2 py-1 cursor-pointer hover:bg-[#2b2e36]" onClick={() => toggle('ideal')}>
+                        {expanded['ideal'] ? <ChevronDown size={14} className="mr-1" /> : <ChevronRight size={14} className="mr-1" />}
+                        <span className="font-semibold">Ideal Lap & Sectors</span>
+                    </div>
+                    {expanded['ideal'] && (
+                        <div className="pl-6 border-l border-[#2b2e36] ml-3 mt-1 space-y-1">
+                            <div className={`tree-item ${isActive('Ideal Lap Ranking') ? 'active' : ''}`} onClick={() => handleSelect('Ideal Lap Ranking')}><Target size={14} /> Ranking Table</div>
+                            <div className={`tree-item ${isActive('Sector Comparison') ? 'active' : ''}`} onClick={() => handleSelect('Ideal Lap Ranking')}><Activity size={14} /> Sector Comparison</div>
                         </div>
                     )}
                 </div>

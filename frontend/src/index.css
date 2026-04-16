@@ -100,3 +100,9 @@ body {
   color: #ffffff;
   border-left: 2px solid #3b82f6;
 }
+
+/* Ideal Lap sector pulse animation */
+@keyframes sectorPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
