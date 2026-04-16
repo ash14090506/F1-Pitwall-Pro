@@ -13,6 +13,8 @@ import FlagsTimeline from './components/FlagsTimeline';
 import DriverPositionChart from './components/DriverPositionChart';
 import TireStrategyGrid from './components/TireStrategyGrid';
 import TrafficHeatmap from './components/TrafficHeatmap';
+import DeltaAnalysis from './components/DeltaAnalysis';
+import AccelerationChart from './components/AccelerationChart';
 import { Play } from 'lucide-react';
 
 const API_BASE = 'http://127.0.0.1:8001/api';
@@ -141,6 +143,27 @@ function App() {
                   <WindowCard title="Grid Progression & Run Layout" fullSpan={true} onClose={() => setActiveModal(null)}>
                       <DriverPositionChart year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} />
                   </WindowCard>
+              );
+          case 'DRS & Acceleration':
+              return (
+                  <div className="h-full w-full flex flex-col gap-3 relative">
+                      <button onClick={() => setActiveModal(null)} className="absolute -top-8 right-0 text-white hover:text-red-500 z-50 px-2 py-1 bg-red-900/50 rounded text-xs font-bold border border-red-500/50">✕ CLOSE WINDOW</button>
+                      <WindowCard title="DRS Activation Module" fullSpan={true}>
+                          <LineChart title="DRS Status" dataKey="drs" yLabel="Active" maxVal={1.2} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
+                      </WindowCard>
+                      <WindowCard title="G-G Friction Circle (Acceleration Map)" fullSpan={true}>
+                          <AccelerationChart telemetryData={telemetries} allDrivers={drivers} />
+                      </WindowCard>
+                  </div>
+              );
+          case 'Delta Analysis':
+              return (
+                  <div className="h-full w-full relative mx-auto shadow-2xl">
+                      <button onClick={() => setActiveModal(null)} className="absolute -top-8 right-0 text-white hover:text-red-500 z-50 px-2 py-1 bg-red-900/50 rounded text-xs font-bold border border-red-500/50">✕ CLOSE WINDOW</button>
+                      <WindowCard title="Comparative Delta Analysis" fullSpan={true}>
+                          <DeltaAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} selectedDrivers={selectedDrivers} />
+                      </WindowCard>
+                  </div>
               );
           default:
               return (
