@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "autofix": {
+      "source": "coderabbitai/skills",
+      "sourceType": "github",
+      "computedHash": "d2927e4cc2eb69b231d22d9cffa8c7ef89226b9986f61f2439e520d78d2f87f3"
+    },
+    "code-review": {
+      "source": "coderabbitai/skills",
+      "sourceType": "github",
+      "computedHash": "30b252fecbaf63a9987c401fa4c0a9896e4084484a35db3e6ce41c44194d780b"
+    }
+  }
+}

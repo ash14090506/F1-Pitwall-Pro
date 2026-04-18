@@ -21,6 +21,9 @@ import PedalBehavior from './components/PedalBehavior';
 import ThrottleCornerAnalysis from './components/ThrottleCornerAnalysis';
 import LongRunAnalysis from './components/LongRunAnalysis';
 import IdealLapRanking from './components/IdealLapRanking';
+import StraightLineSpeed from './components/StraightLineSpeed';
+import BrakeAccelPerformance from './components/BrakeAccelPerformance';
+import CornerClassification from './components/CornerClassification';
 import { Play } from 'lucide-react';
 
 const API_BASE = 'http://127.0.0.1:8001/api';
@@ -153,27 +156,29 @@ function App() {
               );
           case 'Throttle/Brake Analysis':
               return (
-                  <div className="h-full w-full flex flex-col gap-3 relative">
-                      <button onClick={() => setActiveModal(null)} className="absolute -top-8 right-0 text-white hover:text-red-500 z-50 px-2 py-1 bg-red-900/50 rounded text-xs font-bold border border-red-500/50">✕ CLOSE WINDOW</button>
-                      <WindowCard title="Throttle High-Fidelity Module" fullSpan={true}>
-                          <LineChart title="Throttle" yLabel="%" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
-                      </WindowCard>
-                      <WindowCard title="Brake Pressure High-Fidelity Module" fullSpan={true}>
-                          <LineChart title="Brake" yLabel="Pressure %" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
-                      </WindowCard>
-                  </div>
+                  <WindowCard title="Throttle & Brake High-Fidelity Module" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <div className="h-full w-full flex flex-col gap-3">
+                          <div className="flex-1 min-h-0">
+                              <LineChart title="Throttle" yLabel="%" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
+                          </div>
+                          <div className="flex-1 min-h-0">
+                              <LineChart title="Brake" yLabel="Pressure %" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
+                          </div>
+                      </div>
+                  </WindowCard>
               );
           case 'Steering/Gear Analysis':
               return (
-                  <div className="h-full w-full flex flex-col gap-3 relative">
-                      <button onClick={() => setActiveModal(null)} className="absolute -top-8 right-0 text-white hover:text-red-500 z-50 px-2 py-1 bg-red-900/50 rounded text-xs font-bold border border-red-500/50">✕ CLOSE WINDOW</button>
-                      <WindowCard title="Gear Analysis Module" fullSpan={true}>
-                          <LineChart title="nGear" dataKey="gear" yLabel="Gear" maxVal={9} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
-                      </WindowCard>
-                      <WindowCard title="RPM Analysis Module" fullSpan={true}>
-                          <LineChart title="RPM" yLabel="Revs" maxVal={13000} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
-                      </WindowCard>
-                  </div>
+                  <WindowCard title="Gear & RPM Analysis Module" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <div className="h-full w-full flex flex-col gap-3">
+                          <div className="flex-1 min-h-0">
+                              <LineChart title="nGear" dataKey="gear" yLabel="Gear" maxVal={9} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
+                          </div>
+                          <div className="flex-1 min-h-0">
+                              <LineChart title="RPM" yLabel="Revs" maxVal={13000} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
+                          </div>
+                      </div>
+                  </WindowCard>
               );
           case 'Driver Run Position':
               return (
@@ -183,24 +188,40 @@ function App() {
               );
           case 'DRS & Acceleration':
               return (
-                  <div className="h-full w-full flex flex-col gap-3 relative">
-                      <button onClick={() => setActiveModal(null)} className="absolute -top-8 right-0 text-white hover:text-red-500 z-50 px-2 py-1 bg-red-900/50 rounded text-xs font-bold border border-red-500/50">✕ CLOSE WINDOW</button>
-                      <WindowCard title="DRS Activation Module" fullSpan={true}>
-                          <LineChart title="DRS Status" dataKey="drs" yLabel="Active" maxVal={1.2} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
-                      </WindowCard>
-                      <WindowCard title="G-G Friction Circle (Acceleration Map)" fullSpan={true}>
-                          <AccelerationChart telemetryData={telemetries} allDrivers={drivers} />
-                      </WindowCard>
-                  </div>
+                  <WindowCard title="DRS & Acceleration Analysis" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <div className="h-full w-full flex flex-col gap-3">
+                          <div className="flex-1 min-h-0">
+                              <LineChart title="DRS Status" dataKey="drs" yLabel="Active" maxVal={1.2} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
+                          </div>
+                          <div className="flex-1 min-h-0">
+                              <AccelerationChart telemetryData={telemetries} allDrivers={drivers} />
+                          </div>
+                      </div>
+                  </WindowCard>
               );
           case 'Delta Analysis':
               return (
-                  <div className="h-full w-full relative mx-auto shadow-2xl">
-                      <button onClick={() => setActiveModal(null)} className="absolute -top-8 right-0 text-white hover:text-red-500 z-50 px-2 py-1 bg-red-900/50 rounded text-xs font-bold border border-red-500/50">✕ CLOSE WINDOW</button>
-                      <WindowCard title="Comparative Delta Analysis" fullSpan={true}>
-                          <DeltaAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} selectedDrivers={selectedDrivers} />
-                      </WindowCard>
-                  </div>
+                  <WindowCard title="Comparative Delta Analysis" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <DeltaAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} selectedDrivers={selectedDrivers} />
+                  </WindowCard>
+              );
+          case 'Straight Line Speed':
+              return (
+                  <WindowCard title="Straight Line Speed Analysis" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <StraightLineSpeed year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} />
+                  </WindowCard>
+              );
+          case 'Brake & Accel Performance':
+              return (
+                  <WindowCard title="Brake & Acceleration Performance" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <BrakeAccelPerformance year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />
+                  </WindowCard>
+              );
+          case 'Corner Classification':
+              return (
+                  <WindowCard title="Corner Performance Classification" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <CornerClassification year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />
+                  </WindowCard>
               );
           case 'Ideal Lap Ranking':
               return (
