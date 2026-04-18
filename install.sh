@@ -413,10 +413,10 @@ check_required_tools() {
 
     error_msg="Missing required tools:"
     for tool in $missing_tools; do
-        error_msg="$error_msg\n  - $tool"
+        error_msg="${error_msg}\n  - ${tool}"
     done
-    error_msg="$error_msg\nPlease install the missing tools before proceeding"
-    print_error "$error_msg"
+    error_msg="${error_msg}\nPlease install the missing tools before proceeding"
+    print_error "$(printf '%b' "$error_msg")"
     exit 1
 }
 
