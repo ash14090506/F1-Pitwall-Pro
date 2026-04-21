@@ -1,0 +1,39 @@
+{
+  "nodes": [
+    {"id": "agents_3layerarch", "label": "3-Layer Architecture", "file_type": "document", "source_file": "AGENTS.md"},
+    {"id": "agents_directive", "label": "Directive Layer (L1)", "file_type": "document", "source_file": "AGENTS.md"},
+    {"id": "agents_orchestration", "label": "Orchestration Layer (L2)", "file_type": "document", "source_file": "AGENTS.md"},
+    {"id": "agents_execution", "label": "Execution Layer (L3)", "file_type": "document", "source_file": "AGENTS.md"},
+    {"id": "agents_self_anneal", "label": "Self-Annealing Loop", "file_type": "document", "source_file": "AGENTS.md"},
+    {"id": "prd_f1pitwallpro", "label": "F1 Pitwall Pro", "file_type": "document", "source_file": "PRD.md"},
+    {"id": "prd_ralphloop", "label": "Ralph Loop", "file_type": "document", "source_file": "PRD.md"},
+    {"id": "coderabbit_config", "label": "CodeRabbit AI Reviewer", "file_type": "document", "source_file": ".coderabbit.yaml"},
+    {"id": "readme_f1telemetry", "label": "F1 Telemetry Workspace", "file_type": "document", "source_file": "README.md"},
+    {"id": "frontend_architecture", "label": "React + Vite Frontend", "file_type": "document", "source_file": "frontend/README.md"},
+    {"id": "backend_fastapi", "label": "FastAPI + FastF1 Backend", "file_type": "document", "source_file": "backend/requirements.txt"},
+    {"id": "hero_image", "label": "Dashboard Hero Asset", "file_type": "image", "source_file": "frontend/src/assets/hero.png"}
+  ],
+  "edges": [
+    {"source": "agents_3layerarch", "target": "agents_directive", "relation": "contains", "confidence": "EXTRACTED", "confidence_score": 1.0, "source_file": "AGENTS.md"},
+    {"source": "agents_3layerarch", "target": "agents_orchestration", "relation": "contains", "confidence": "EXTRACTED", "confidence_score": 1.0, "source_file": "AGENTS.md"},
+    {"source": "agents_3layerarch", "target": "agents_execution", "relation": "contains", "confidence": "EXTRACTED", "confidence_score": 1.0, "source_file": "AGENTS.md"},
+    {"source": "agents_orchestration", "target": "agents_self_anneal", "relation": "implements", "confidence": "EXTRACTED", "confidence_score": 1.0, "source_file": "AGENTS.md"},
+    {"source": "prd_f1pitwallpro", "target": "prd_ralphloop", "relation": "uses", "confidence": "EXTRACTED", "confidence_score": 1.0, "source_file": "PRD.md"},
+    {"source": "prd_ralphloop", "target": "coderabbit_config", "relation": "integrates_with", "confidence": "INFERRED", "confidence_score": 0.9, "source_file": "PRD.md"},
+    {"source": "frontend_architecture", "target": "hero_image", "relation": "displays", "confidence": "EXTRACTED", "confidence_score": 1.0, "source_file": "frontend/README.md"},
+    {"source": "agents_execution", "target": "backend_fastapi", "relation": "conceptually_related_to", "confidence": "INFERRED", "confidence_score": 0.8, "source_file": "AGENTS.md"}
+  ],
+  "hyperedges": [
+    {
+      "id": "pitwall_core_spec",
+      "label": "Pitwall Core Specification",
+      "nodes": ["prd_f1pitwallpro", "agents_3layerarch", "readme_f1telemetry"],
+      "relation": "form",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "PRD.md"
+    }
+  ],
+  "input_tokens": 1200,
+  "output_tokens": 800
+}
