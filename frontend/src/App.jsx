@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import Sidebar from './components/Sidebar';
 import WindowCard from './components/WindowCard';
@@ -51,6 +51,10 @@ function App() {
   const [maxPlaybackIndex, setMaxPlaybackIndex] = useState(0);
   const [maxDistance, setMaxDistance] = useState(0);
   const [globalHoverDistance, setGlobalHoverDistance] = useState(null);
+
+  const handleMenuSelect = useCallback((modalName) => {
+      setActiveModal(modalName);
+  }, []);
 
   const renderMenu = (name, items) => (
     <div className="relative z-[100]">
@@ -460,7 +464,7 @@ function App() {
 
       {/* Main Workspace Layout */}
       <div className="flex flex-1 overflow-hidden relative">
-        {sidebarVisible && <Sidebar activeModal={activeModal} onMenuSelect={setActiveModal} />}
+        {sidebarVisible && <Sidebar activeModal={activeModal} onMenuSelect={handleMenuSelect} />}
 
         {/* Modal Overlay */}
         {activeModal && activeModal !== 'Detailed Lap Analysis' && (

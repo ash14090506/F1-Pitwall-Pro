@@ -1,9 +1,13 @@
 import os
+import logging
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import fastf1
 import pandas as pd
 import numpy as np
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="F1 Pitwall API", version="1.0")
 
@@ -88,7 +92,12 @@ def get_parsed_session(year: int, round: int, session_type: str):
     key = f"{year}_{round}_{session_type}"
     with session_lock:
         if key not in loaded_sessions:
-            print(f"[{key}] Pandas is parsing telemetry from cache into RAM for the first time... this will take ~30s...")
+            if len(loaded_sessions) >= 3:
+                oldest_key = list(loaded_sessions.keys())[0]
+                del loaded_sessions[oldest_key]
+                logger.info(f"Evicted {oldest_key} from RAM cache to prevent memory bloat.")
+                
+            logger.info(f"[{key}] Pandas is parsing telemetry from cache into RAM for the first time... this will take ~30s...")
             session = fastf1.get_session(year, round, session_type)
             session.load(telemetry=True, laps=True, weather=False)
             
@@ -99,11 +108,11 @@ def get_parsed_session(year: int, round: int, session_type: str):
                 if session.laps is None or len(session.laps) == 0:
                     raise Exception("Missing Laps data.")
             except Exception as e:
-                print(f"[{key}] Validation Failed: No telemetry/laps parsed ({e}). Breaking memory lock so it retries.")
+                logger.error(f"[{key}] Validation Failed: No telemetry/laps parsed ({e}). Breaking memory lock so it retries.")
                 raise ValueError("F1 Live Session Data unavailable. Either the server rejected the connection or the race data is missing.")
             
             loaded_sessions[key] = session
-            print(f"[{key}] Parsing complete. Locked into RAM!")
+            logger.info(f"[{key}] Parsing complete. Locked into RAM!")
             
         return loaded_sessions[key]
 
@@ -133,7 +142,7 @@ def process_telemetry_data(telemetry):
         # Clip absurd outliers resulting from tight slow corners where dx/dy ~= 0
         telemetry['Lat_Accel'] = telemetry['Lat_Accel'].clip(-6.0, 6.0).fillna(0)
     except Exception as e:
-        print(f"Failed to calculate acceleration: {e}")
+        logger.error(f"Failed to calculate acceleration: {e}")
         telemetry['Lon_Accel'] = 0.0
         telemetry['Lat_Accel'] = 0.0
         

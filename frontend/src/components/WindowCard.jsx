@@ -17,9 +17,11 @@ const WindowCard = ({ title, children, fullSpan = false, onClose }) => {
     if (isClosed) return null;
 
     return (
-        <div className={`bg-[#16181d] border border-[#2b2e36] flex flex-col shadow-lg overflow-hidden transition-all duration-150 ${maximized ? 'fixed inset-4 z-50 bg-[#16181d]' : minimized ? 'h-8 self-start' : 'h-full w-full'} ${fullSpan ? 'col-span-3' : ''}`}>
-            {/* Window Header */}
-            <div className={`bg-[#1b1d24] border-b border-[#2b2e36] px-2 py-1 flex items-center justify-between select-none ${minimized ? 'cursor-pointer hover:bg-[#22252e]' : ''}`} onClick={() => minimized && setMinimized(false)}>
+        <div className={`p-[5px] bg-[#1b1d24]/40 backdrop-blur-3xl rounded-2xl ring-1 ring-white/5 shadow-[0_24px_40px_rgba(0,0,0,0.5)] flex flex-col transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] ${maximized ? 'fixed inset-4 z-50 bg-[#1b1d24]/80' : minimized ? 'h-12 self-start' : 'h-full w-full'} ${fullSpan ? 'col-span-3' : ''}`}>
+            {/* Inner Core */}
+            <div className={`bg-[#050505] rounded-[calc(1rem-0.25rem)] overflow-hidden flex flex-col h-full ring-1 ring-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]`}>
+                {/* Window Header */}
+                <div className={`bg-gradient-to-b from-[#1b1d24] to-[#121419] px-3 py-1.5 flex items-center justify-between select-none ${minimized ? 'cursor-pointer hover:bg-[#22252e]' : ''}`} onClick={() => minimized && setMinimized(false)}>
                 <div className="text-xs font-medium flex items-center gap-2">
                     {minimized ? (
                          <>
@@ -49,8 +51,9 @@ const WindowCard = ({ title, children, fullSpan = false, onClose }) => {
             </div>
             
             {/* Window Body */}
-            <div className={`flex-1 p-1 overflow-hidden relative bg-[#0b0d10] ${minimized ? 'hidden' : 'block'}`}>
+            <div className={`flex-1 p-2 overflow-hidden relative bg-[#050505] ${minimized ? 'hidden' : 'block'}`}>
                 {children}
+            </div>
             </div>
         </div>
     );

@@ -98,4 +98,4 @@ const Sidebar = ({ activeModal, onMenuSelect }) => {
     );
 };
 
-export default Sidebar;
+export default React.memo(Sidebar);

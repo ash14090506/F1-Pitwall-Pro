@@ -1,43 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import ReactPlot from 'react-plotly.js';
-import axios from 'axios';
+import { useFetch } from '../hooks/useFetch';
 
 const Plot = ReactPlot.default || ReactPlot;
-const API_BASE = 'http://127.0.0.1:8001/api';
 
 const TemperatureAnalysis = ({ year, round, sessionType }) => {
-    const [weatherData, setWeatherData] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-
-    useEffect(() => {
-        if (!year || !round || !sessionType) return;
-        
-        const fetchWeather = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const res = await axios.get(`${API_BASE}/weather?year=${year}&round=${round}&session_type=${sessionType}`);
-                setWeatherData(res.data);
-            } catch (err) {
-                console.error(err);
-                if (err.response && err.response.data && err.response.data.detail) {
-                    setError(err.response.data.detail);
-                } else {
-                    setError("Failed to fetch weather data.");
-                }
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchWeather();
-    }, [year, round, sessionType]);
+    const endpoint = `/weather?year=${year}&round=${round}&session_type=${sessionType}`;
+    const { data: weatherData, loading, error } = useFetch(endpoint, [year, round, sessionType]);
 
     if (loading) return <div className="w-full h-full flex items-center justify-center text-blue-400 font-bold text-xs tracking-widest animate-pulse">LOADING WEATHER DATA...</div>;
     if (error) return <div className="w-full h-full flex items-center justify-center text-red-500 font-bold text-xs">{error}</div>;
     if (!weatherData) return <div className="w-full h-full flex items-center justify-center text-gray-500 font-bold text-xs hover:text-white">NO DATA AVAILABLE YET</div>;
 
-    const traces = [
+    const traces = useMemo(() => [
         {
             x: weatherData.time,
             y: weatherData.track_temp,
@@ -74,7 +49,7 @@ const TemperatureAnalysis = ({ year, round, sessionType }) => {
             line: { color: '#8b5cf6', width: 2, dash: 'dash' },
             yaxis: 'y2'
         }
-    ];
+    ], [weatherData]);
 
     return (
         <div className="h-full w-full bg-[#0b0d10] relative font-sans">
