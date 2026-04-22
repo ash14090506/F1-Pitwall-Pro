@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import Plot from 'react-plotly.js';
+import ReactPlot from 'react-plotly.js';
+const Plot = ReactPlot.default || ReactPlot;
 
 const API_BASE = 'http://127.0.0.1:8001/api';
 

@@ -24,6 +24,9 @@ import IdealLapRanking from './components/IdealLapRanking';
 import StraightLineSpeed from './components/StraightLineSpeed';
 import BrakeAccelPerformance from './components/BrakeAccelPerformance';
 import CornerClassification from './components/CornerClassification';
+import AiPredictions from './components/AiPredictions';
+import HistoricalTrackMap from './components/HistoricalTrackMap';
+import SeasonStartReaction from './components/SeasonStartReaction';
 import { Play } from 'lucide-react';
 
 const API_BASE = 'http://127.0.0.1:8001/api';
@@ -53,7 +56,11 @@ function App() {
   const [globalHoverDistance, setGlobalHoverDistance] = useState(null);
 
   const handleMenuSelect = useCallback((modalName) => {
-      setActiveModal(modalName);
+      if (modalName === 'Main Telemetry Dashboard') {
+          setActiveModal(null);
+      } else {
+          setActiveModal(modalName);
+      }
   }, []);
 
   const renderMenu = (name, items) => (
@@ -233,11 +240,35 @@ function App() {
                       <IdealLapRanking year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} />
                   </WindowCard>
               );
+          case 'AI Prediction Models':
+              return (
+                  <WindowCard title="AI Prediction Models" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <AiPredictions year={selectedYear} round={selectedRace} />
+                  </WindowCard>
+              );
+          case 'Historical Track Map':
+              return (
+                  <WindowCard title="Historical Track Map & Flags" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <HistoricalTrackMap year={selectedYear} round={selectedRace} />
+                  </WindowCard>
+              );
+          case 'Season Start Reaction':
+              return (
+                  <WindowCard title="Season Start Reaction" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <SeasonStartReaction year={selectedYear} />
+                  </WindowCard>
+              );
           default:
               return (
                   <WindowCard title={activeModal} fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <div className="flex items-center justify-center h-full w-full bg-[#0b0d10] text-[#64748b] text-sm">
-                          Data for <strong className="mx-1 text-white">{activeModal}</strong> is currently unavailable or disconnected.
+                      <div className="flex flex-col items-center justify-center h-full w-full bg-[#0b0d10] text-[#64748b]">
+                          <div className="w-16 h-16 mb-4 flex items-center justify-center rounded-full bg-[#1b1d24] border border-[#2b2e36]">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                          </div>
+                          <div className="text-lg font-bold text-white mb-1">Under Construction</div>
+                          <div className="text-sm">
+                              Module <strong className="text-red-400">{activeModal}</strong> is planned for a future update.
+                          </div>
                       </div>
                   </WindowCard>
               );

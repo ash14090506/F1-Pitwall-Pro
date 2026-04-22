@@ -1,5 +1,6 @@
 import React from 'react';
-import Plot from 'react-plotly.js';
+import ReactPlot from 'react-plotly.js';
+const Plot = ReactPlot.default || ReactPlot;
 
 export default function TelemetryChart({ dataA, dataB }) {
   if (!dataA || !dataB) return null;
