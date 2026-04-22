@@ -8,7 +8,7 @@
 
 **F1 Pitwall Pro** is an elite, multi-document web framework designed for high-performance Formula 1 telemetry analysis. It integrates a sleek, desktop-class UI within the browser to provide real-time strategic insights, temporal driver tracking, and deep-dive statistical comparisons across historical F1 events.
 
-Built for race engineers, data scientists, and hardcore enthusiasts, this suite processes raw car sensor traces into actionable race-winning intelligence.
+![PITWALL Dashboard](https://raw.githubusercontent.com/WarmBed/PITWALL/main/images/page01.png)
 
 ---
 
@@ -25,56 +25,96 @@ Built for race engineers, data scientists, and hardcore enthusiasts, this suite 
 
 F1 Pitwall Pro is meticulously organized into 8 overarching analysis categories, mirroring true trackside engineering environments.
 
+---
+
 ### 🟣 1. Historical Analysis
-Analyze macro-trends and legacy data from completed sessions.
-* **Temperature Analysis:** Track surface and ambient temperature impacts.
-* **Track Analysis:** Circuit characteristics and corner mappings.
-* **Pitstop Analysis:** Box time efficiency and stationary duration tracking.
-* **Accident & Flags Analysis:** SC/VSC and Red Flag historical deployments.
-* **Tire Strategy Analysis:** Stint lengths, compound choices, and degradation.
-* **Driver Run Position:** Race grid progression charting.
-* **Traffic Analysis:** Heatmaps of dirty air and traffic density.
+This group contains deep post-race analysis tools, covering strategy, tires, incidents, and track/environmental context.
+
+![Historical Analysis](https://raw.githubusercontent.com/WarmBed/PITWALL/main/images/page02.png)
+
+* **1.1 Temperature Analysis:** Visualizes environmental data throughout the race weekend (Track Temp, Air Temp, humidity, pressure, rainfall).
+* **1.2 Track Analysis:** Renders a high-precision circuit map labeling all official corner numbers and DRS zones.
+* **1.3 Pitstop Analysis:** Detailed pitstop analytics with team summary and detailed log. Calculates stationary time and total pit loss.
+* **1.4 Accident & Flags Analysis:** Focuses on interruptions (Yellow Flag, Red Flag, VSC, SC) on a Gantt-chart-style timeline.
+* **1.5 Tire Strategy Analysis:** The core module for analyzing tire usage strategy using intuitive horizontal stint bars for each driver.
+* **1.6 Driver Run Position:** Plots a position chart for the entire race, keeping position calculations correct for DNFs.
+* **1.7 Traffic Analysis:** Quantifies traffic conditions encountered during the race to determine clean vs. dirty air.
+
+---
 
 ### 🟢 2. Main Telemetry Analysis
-The core 6-grid engineering dashboard for raw sensor output.
-* **Main Telemetry Dashboard:** Speed, RPM, Gear, Throttle, Brake, DRS traces.
-* **Channel-Specific Analysis:** Isolate and expand individual sensor channels.
-* **Delta Analysis:** Micro-sector time difference comparisons between drivers.
-* **Lap-by-Lap Comparison:** Overlay and scrub through entire stint histories.
+This group provides sample-rate (Hz) vehicle physics data analysis for precise comparisons of driving style and car performance.
+
+![Main Telemetry](https://raw.githubusercontent.com/WarmBed/PITWALL/main/images/page03.png)
+
+* **2.1 Main Telemetry Analysis:** The most powerful telemetry tool in the system. Synchronized display of Speed, RPM, Gear, Throttle, Brake, and DRS status.
+* **2.2 Channel-Specific Analysis:** Deeper views for specific signals (Speed, Brake, Throttle, Gear & RPM, Acceleration).
+* **2.3 Delta Analysis:** Directly computes speed differences between two cars at the same track position to show who is faster in corners/straights.
+
+---
 
 ### 🩵 3. Lap Data & Long Run
-FP2 race-pace simulations and consistency metrics.
-* **Detailed Lap Data:** Comprehensive lap-by-lap breakdown matrix.
-* **Lap Time Box Plot:** Visualizing driver consistency and stint volatility.
-* **Throttle Corner Analysis:** Mapping on-throttle application points per corner.
-* **Pedal Behavior Analysis:** Pre-apex and post-apex pedal mapping.
-* **Long Run Analysis:** Fuel-corrected race pace and tire degradation modeling.
+This group focuses on statistical lap-time characteristics, consistency, and long-run performance.
+
+![Lap Data & Long Run](https://raw.githubusercontent.com/WarmBed/PITWALL/main/images/page04.png)
+
+* **3.1 Detailed Lap Data:** Feature-rich table listing detailed information for every lap of selected drivers.
+* **3.2 Lap Time Box Plot:** Uses a box-and-whisker plot to visualize lap-time distribution, showing median, IQR, and outliers.
+* **3.3 Throttle Corner Analysis:** Combines throttle data with track corners to evaluate driver confidence and corner-exit application.
+* **3.4 Pedal Behavior Analysis:** Presents the pedal usage status distribution (Throttle Only, Brake Only, Trail Braking, Coasting).
+* **3.5 Long Run Analysis:** Designed for FP2 long-run simulation analysis, including fuel correction to isolate pure tire degradation rate.
+
+---
 
 ### 🟠 4. Ideal Lap Analysis
-Reconstruct theoretical limits.
-* **Sector Reconstruction:** Aggregating the absolute best micro-sectors across a session to calculate a driver's theoretical "perfect lap" limit.
+This group reconstructs best sector times to explore theoretical performance limits.
+
+![Ideal Lap Analysis](https://raw.githubusercontent.com/WarmBed/PITWALL/main/images/page05.png)
+
+* **Sector Reconstruction:** Computes each driver’s theoretical best lap time by summing their best S1, S2, and S3 from the session. Compares theoretical time with actual pole time to calculate the "potential gap".
+
+---
 
 ### 🩷 5. Performance Evaluation
 Deep-dive car characteristic benchmarking.
-* **Straight Line Speed:** Trap speed analysis and aerodynamic drag profiling.
-* **Brake & Accel Performance:** Longitudinal G-force and braking efficiency.
-* **Corner Classification:** Slow, Medium, and High-speed corner performance profiling.
+
+![Straight Line Speed](https://raw.githubusercontent.com/WarmBed/PITWALL/main/images/page06.png)
+
+* **5.1 Straight Line Speed:** Collects and compares top speed/trap speed at key straight endpoints, reflecting drag level and engine power.
+* **5.2 Brake & Acceleration Performance:** Uses scatter plots to analyze deceleration performance in heavy braking zones and corner-exit acceleration.
+* **5.3 Corner Performance Classification:** Classifies corners by speed into low-speed, medium-speed, and high-speed categories.
+
+---
 
 ### 🔵 6. AI Prediction Models
 Machine learning driven race forecasting.
+
+![AI Predictions](https://raw.githubusercontent.com/WarmBed/PITWALL/main/images/page09.png)
+
 * **Qualifying & Race Predictions:** Algorithmic gap-prediction utilizing FP data to forecast Qualifying pace and Race finishing distributions.
+
+---
 
 ### 🟡 7. Multi-Season Analysis
 Year-over-year circuit evolution.
-* **Historical Track Map:** 4-year historical plotting of incident hotspots.
-* **Season Start Reaction:** 0-50 km/h acceleration distributions to map driver reaction consistency across the entire calendar.
+
+![Historical Track Map](https://raw.githubusercontent.com/WarmBed/PITWALL/main/images/page10.png)
+
+* **7.1 Historical Track Map:** Combines a track map, elevation chart, and year-by-year flag statistics table to analyze incident hotspots.
+* **7.2 Season Start Reaction:** Focuses on drivers’ start performance across the season using 0–50 km/h acceleration time distributions.
+
+---
 
 ### 🔴 8. Live Timing & Strategy (Planned)
 *The future frontier for real-time race weekend integration.*
-* **Core Monitoring:** Ranking Tower, Circle Map, Track & Weather.
-* **Strategy & Prescription:** Driver Strategy, Battle Insight, Chase Strategy, Pit Window.
-* **Telemetry & Performance:** Real-time Traces, Live Sector Comparisons.
-* **History & Stats:** Live Traffic Timeline, Lap Time Distributions.
+
+![Live Timing](https://raw.githubusercontent.com/WarmBed/PITWALL/main/images/page12.png)
+
+* **8.1 Core Monitoring:** Ranking Tower, Track Map, Circle Map, Track & Weather.
+* **8.2 Strategy & Prescription:** Driver Strategy, Battle Insight, Chase Strategy, Pit Window, Tyre Strategy.
+* **8.3 Telemetry & Performance:** Real-time Telemetry Traces, Sector Comparison, SF% History, Top Speed History.
+* **8.4 History & Stats:** Lap History Tables, Lap Time Distribution, Live Traffic Timeline, Traffic Distance.
+* **8.5 Others:** Race Control messages.
 
 ---
 
