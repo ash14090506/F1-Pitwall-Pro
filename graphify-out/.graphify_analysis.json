@@ -1,0 +1,492 @@
+{
+  "communities": {
+    "0": [
+      "frontend_src_components_ideallapranking_jsx",
+      "ideallapranking_cumulativebarcolor",
+      "ideallapranking_cumulativebargradient",
+      "ideallapranking_formatdelta",
+      "ideallapranking_formatlaptime",
+      "ideallapranking_gapcolor",
+      "ideallapranking_ideallapranking",
+      "ideallapranking_sectorbgcolor",
+      "ideallapranking_sectorcellcolor",
+      "ideallapranking_sectordot",
+      "ideallapranking_statitem"
+    ],
+    "1": [
+      "app_get_ideal_lap_ranking",
+      "app_get_pitstop_data",
+      "app_get_straight_line_speed",
+      "app_rationale_334",
+      "app_rationale_749",
+      "app_rationale_830",
+      "app_root",
+      "backend_app_py"
+    ],
+    "2": [
+      "app_get_brake_accel_performance",
+      "app_get_fastest_lap_telemetry",
+      "app_get_lap_telemetry",
+      "app_process_telemetry_data",
+      "app_rationale_144",
+      "app_rationale_182",
+      "app_rationale_886"
+    ],
+    "3": [
+      "app_get_long_run_analysis",
+      "app_get_parsed_session",
+      "app_get_telemetry_delta",
+      "app_get_weather_data",
+      "app_rationale_220",
+      "app_rationale_310",
+      "app_rationale_704"
+    ],
+    "4": [
+      "errorboundary_errorboundary",
+      "errorboundary_errorboundary_componentdidcatch",
+      "errorboundary_errorboundary_constructor",
+      "errorboundary_errorboundary_getderivedstatefromerror",
+      "errorboundary_errorboundary_render",
+      "frontend_src_components_errorboundary_jsx"
+    ],
+    "5": [
+      "data_cleaning_clean_lap_times",
+      "data_cleaning_clean_pit_stops",
+      "data_cleaning_clean_races",
+      "data_cleaning_clean_results",
+      "data_cleaning_convert_lap_time",
+      "src_data_cleaning_py"
+    ],
+    "6": [
+      "agents_3layerarch",
+      "agents_directive",
+      "agents_execution",
+      "agents_orchestration",
+      "agents_self_anneal",
+      "backend_fastapi"
+    ],
+    "7": [
+      "coderabbit_config",
+      "prd_f1pitwallpro",
+      "prd_ralphloop"
+    ],
+    "8": [
+      "app_dashboard_py",
+      "dashboard_highlight_risk"
+    ],
+    "9": [
+      "app_get_drivers",
+      "app_rationale_54"
+    ],
+    "10": [
+      "app_get_circuit_data",
+      "app_rationale_403"
+    ],
+    "11": [
+      "app_get_corner_classification",
+      "app_rationale_964"
+    ],
+    "12": [
+      "app_get_positions_data",
+      "app_rationale_437"
+    ],
+    "13": [
+      "app_get_race_control_messages",
+      "app_rationale_366"
+    ],
+    "14": [
+      "app_get_pedal_behavior",
+      "app_rationale_612"
+    ],
+    "15": [
+      "app_get_corners_heuristic",
+      "app_rationale_651"
+    ],
+    "16": [
+      "app_get_tire_strategy",
+      "app_rationale_469"
+    ],
+    "17": [
+      "app_get_laps_data",
+      "app_rationale_566"
+    ],
+    "18": [
+      "app_get_traffic_data",
+      "app_rationale_513"
+    ],
+    "19": [
+      "app_get_laps_summary",
+      "app_rationale_271"
+    ],
+    "20": [
+      "app_clear_backend_memory",
+      "app_rationale_1057"
+    ],
+    "21": [
+      "app_get_races",
+      "app_rationale_31"
+    ],
+    "22": [
+      "backend_prefetch_cache_py",
+      "prefetch_cache_prefetch_season"
+    ],
+    "23": [
+      "backend_scratch_laps_py",
+      "scratch_laps_test"
+    ],
+    "24": [
+      "backend_scratch_track_py",
+      "scratch_track_test"
+    ],
+    "25": [
+      "app_app",
+      "frontend_src_app_jsx"
+    ],
+    "26": [
+      "frontend_src_telemetrychart_jsx",
+      "telemetrychart_telemetrychart"
+    ],
+    "27": [
+      "accelerationchart_accelerationchart",
+      "frontend_src_components_accelerationchart_jsx"
+    ],
+    "28": [
+      "brakeaccelperformance_brakeaccelperformance",
+      "frontend_src_components_brakeaccelperformance_jsx"
+    ],
+    "29": [
+      "cornerclassification_cornerclassification",
+      "frontend_src_components_cornerclassification_jsx"
+    ],
+    "30": [
+      "deltaanalysis_deltaanalysis",
+      "frontend_src_components_deltaanalysis_jsx"
+    ],
+    "31": [
+      "detailedlapdata_detailedlapdata",
+      "frontend_src_components_detailedlapdata_jsx"
+    ],
+    "32": [
+      "driverpositionchart_driverpositionchart",
+      "frontend_src_components_driverpositionchart_jsx"
+    ],
+    "33": [
+      "flagstimeline_flagstimeline",
+      "frontend_src_components_flagstimeline_jsx"
+    ],
+    "34": [
+      "frontend_src_components_lapcomparisonmodal_jsx",
+      "lapcomparisonmodal_lapcomparisonmodal"
+    ],
+    "35": [
+      "frontend_src_components_laptimeboxplot_jsx",
+      "laptimeboxplot_laptimeboxplot"
+    ],
+    "36": [
+      "frontend_src_components_linechart_jsx",
+      "linechart_linechart"
+    ],
+    "37": [
+      "frontend_src_components_longrunanalysis_jsx",
+      "longrunanalysis_longrunanalysis"
+    ],
+    "38": [
+      "frontend_src_components_pedalbehavior_jsx",
+      "pedalbehavior_pedalbehavior"
+    ],
+    "39": [
+      "frontend_src_components_pitstopanalysis_jsx",
+      "pitstopanalysis_pitstopanalysis"
+    ],
+    "40": [
+      "frontend_src_components_playbackcontrols_jsx",
+      "playbackcontrols_playbackcontrols"
+    ],
+    "41": [
+      "frontend_src_components_sidebar_jsx",
+      "sidebar_sidebar"
+    ],
+    "42": [
+      "frontend_src_components_straightlinespeed_jsx",
+      "straightlinespeed_straightlinespeed"
+    ],
+    "43": [
+      "frontend_src_components_temperatureanalysis_jsx",
+      "temperatureanalysis_temperatureanalysis"
+    ],
+    "44": [
+      "frontend_src_components_throttlecorneranalysis_jsx",
+      "throttlecorneranalysis_throttlecorneranalysis"
+    ],
+    "45": [
+      "frontend_src_components_tirestrategygrid_jsx",
+      "tirestrategygrid_tirestrategygrid"
+    ],
+    "46": [
+      "frontend_src_components_trackmap_jsx",
+      "trackmap_trackmap"
+    ],
+    "47": [
+      "frontend_src_components_trafficheatmap_jsx",
+      "trafficheatmap_trafficheatmap"
+    ],
+    "48": [
+      "frontend_src_components_windowcard_jsx",
+      "windowcard_windowcard"
+    ],
+    "49": [
+      "feature_engineering_engineer_features",
+      "src_feature_engineering_py"
+    ],
+    "50": [
+      "race_simulator_simulate_race",
+      "src_race_simulator_py"
+    ],
+    "51": [
+      "risk_detection_detect_risk",
+      "src_risk_detection_py"
+    ],
+    "52": [
+      "src_strategy_alerts_py",
+      "strategy_alerts_generate_alerts"
+    ],
+    "53": [
+      "src_undercut_detection_py",
+      "undercut_detection_detect_undercut"
+    ],
+    "54": [
+      "frontend_architecture",
+      "hero_image"
+    ],
+    "55": [
+      "auto_push_ps1"
+    ],
+    "56": [
+      "test_api_py"
+    ],
+    "57": [
+      "backend_scratch_accel_py"
+    ],
+    "58": [
+      "backend_scratch_test_py"
+    ],
+    "59": [
+      "backend_test_fastf1_py"
+    ],
+    "60": [
+      "backend_test_phase2_py"
+    ],
+    "61": [
+      "frontend_eslint_config_js"
+    ],
+    "62": [
+      "frontend_vite_config_js"
+    ],
+    "63": [
+      "frontend_src_main_jsx"
+    ],
+    "64": [
+      "src_data_collection_py"
+    ],
+    "65": [
+      "src_data_processing_py"
+    ],
+    "66": [
+      "src_ml_model_py"
+    ],
+    "67": [
+      "src_pit_optimizer_py"
+    ],
+    "68": [
+      "src_risk_model_py"
+    ],
+    "69": [
+      "src_risk_rules_py"
+    ],
+    "70": [
+      "readme_f1telemetry"
+    ]
+  },
+  "cohesion": {
+    "0": 0.2,
+    "1": 0.25,
+    "2": 0.29,
+    "3": 0.29,
+    "4": 0.33,
+    "5": 0.33,
+    "6": 0.33,
+    "7": 0.67,
+    "8": 1.0,
+    "9": 1.0,
+    "10": 1.0,
+    "11": 1.0,
+    "12": 1.0,
+    "13": 1.0,
+    "14": 1.0,
+    "15": 1.0,
+    "16": 1.0,
+    "17": 1.0,
+    "18": 1.0,
+    "19": 1.0,
+    "20": 1.0,
+    "21": 1.0,
+    "22": 1.0,
+    "23": 1.0,
+    "24": 1.0,
+    "25": 1.0,
+    "26": 1.0,
+    "27": 1.0,
+    "28": 1.0,
+    "29": 1.0,
+    "30": 1.0,
+    "31": 1.0,
+    "32": 1.0,
+    "33": 1.0,
+    "34": 1.0,
+    "35": 1.0,
+    "36": 1.0,
+    "37": 1.0,
+    "38": 1.0,
+    "39": 1.0,
+    "40": 1.0,
+    "41": 1.0,
+    "42": 1.0,
+    "43": 1.0,
+    "44": 1.0,
+    "45": 1.0,
+    "46": 1.0,
+    "47": 1.0,
+    "48": 1.0,
+    "49": 1.0,
+    "50": 1.0,
+    "51": 1.0,
+    "52": 1.0,
+    "53": 1.0,
+    "54": 1.0,
+    "55": 1.0,
+    "56": 1.0,
+    "57": 1.0,
+    "58": 1.0,
+    "59": 1.0,
+    "60": 1.0,
+    "61": 1.0,
+    "62": 1.0,
+    "63": 1.0,
+    "64": 1.0,
+    "65": 1.0,
+    "66": 1.0,
+    "67": 1.0,
+    "68": 1.0,
+    "69": 1.0,
+    "70": 1.0
+  },
+  "gods": [
+    {
+      "id": "app_get_parsed_session",
+      "label": "get_parsed_session()",
+      "degree": 20
+    },
+    {
+      "id": "errorboundary_errorboundary",
+      "label": "ErrorBoundary",
+      "degree": 5
+    },
+    {
+      "id": "app_process_telemetry_data",
+      "label": "process_telemetry_data()",
+      "degree": 4
+    },
+    {
+      "id": "app_get_fastest_lap_telemetry",
+      "label": "get_fastest_lap_telemetry()",
+      "degree": 4
+    },
+    {
+      "id": "app_get_lap_telemetry",
+      "label": "get_lap_telemetry()",
+      "degree": 4
+    },
+    {
+      "id": "app_get_brake_accel_performance",
+      "label": "get_brake_accel_performance()",
+      "degree": 4
+    },
+    {
+      "id": "app_get_telemetry_delta",
+      "label": "get_telemetry_delta()",
+      "degree": 3
+    },
+    {
+      "id": "app_get_laps_summary",
+      "label": "get_laps_summary()",
+      "degree": 3
+    },
+    {
+      "id": "app_get_weather_data",
+      "label": "get_weather_data()",
+      "degree": 3
+    },
+    {
+      "id": "app_get_pitstop_data",
+      "label": "get_pitstop_data()",
+      "degree": 3
+    }
+  ],
+  "surprises": [
+    {
+      "source": "Execution Layer (L3)",
+      "target": "FastAPI + FastF1 Backend",
+      "source_files": [
+        "AGENTS.md",
+        "backend/requirements.txt"
+      ],
+      "confidence": "INFERRED",
+      "relation": "conceptually_related_to",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories"
+    },
+    {
+      "source": "Ralph Loop",
+      "target": "CodeRabbit AI Reviewer",
+      "source_files": [
+        "PRD.md",
+        ".coderabbit.yaml"
+      ],
+      "confidence": "INFERRED",
+      "relation": "integrates_with",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories"
+    },
+    {
+      "source": "React + Vite Frontend",
+      "target": "Dashboard Hero Asset",
+      "source_files": [
+        "frontend/README.md",
+        "frontend/src/assets/hero.png"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "displays",
+      "why": "crosses file types (doc \u2194 image)"
+    }
+  ],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `get_parsed_session()` connect `Community 3` to `Community 1`, `Community 2`, `Community 10`, `Community 11`, `Community 12`, `Community 13`, `Community 14`, `Community 15`, `Community 16`, `Community 17`, `Community 18`, `Community 19`?",
+      "why": "High betweenness centrality (0.026) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `get_fastest_lap_telemetry()` connect `Community 2` to `Community 1`, `Community 3`?",
+      "why": "High betweenness centrality (0.004) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `get_lap_telemetry()` connect `Community 2` to `Community 1`, `Community 3`?",
+      "why": "High betweenness centrality (0.004) - this node is a cross-community bridge."
+    },
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `Get the event schedule for a given year.`, `Get the drivers that participated in a specific session, and pre-warm telemetry`, `Retrieve telemetry for the fastest lap of a specific driver.` to the rest of the system?",
+      "why": "30 weakly-connected nodes found - possible documentation gaps or missing edges."
+    }
+  ]
+}

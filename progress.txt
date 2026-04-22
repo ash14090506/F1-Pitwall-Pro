@@ -1,0 +1,76 @@
+# Ralph Loop — Progress Tracker
+# ==============================
+# This file is updated by the agent after each iteration.
+# The agent reads PRD.md + this file on every loop to decide what to do next.
+#
+# FORMAT:
+# [ITERATION N] <timestamp>
+# TASK: <task ID from PRD.md>
+# STATUS: [x] completed | [!] blocked | [/] partial
+# FILES CHANGED: <list of files modified>
+# VERIFICATION: <what was tested and result>
+# NOTES: <any context for next iteration>
+# ---
+
+# === INITIALIZATION ===
+[ITERATION 0] 2026-04-18T16:20:00+05:30
+TASK: Setup
+STATUS: [x] completed
+FILES CHANGED: PRD.md, progress.txt, .coderabbit.yaml, .gitignore
+VERIFICATION: PRD.md created with 15 tasks across 6 phases. CodeRabbit config created. Progress.txt initialized.
+NOTES: Agent should begin with TASK 1.1 (Straight Line Speed Analysis) on next iteration.
+---
+
+[ITERATION 1] 2026-04-18T16:30:00+05:30
+TASK: 1.1 Straight Line Speed Analysis
+STATUS: [x] completed
+FILES CHANGED:
+  - backend/app.py (added /api/straight_line_speed endpoint)
+  - frontend/src/components/StraightLineSpeed.jsx (NEW)
+  - frontend/src/components/Sidebar.jsx (added Speed & Corner Analysis section)
+  - frontend/src/App.jsx (imported component, added renderModalContent case)
+VERIFICATION: npm run build → SUCCESS (exit 0, 1802 modules). Python AST parse → OK.
+NOTES: Horizontal bar chart with toggle between Top Speed (telemetry) and Speed Trap (official). Team-colored bars.
+---
+
+[ITERATION 2] 2026-04-18T16:30:00+05:30
+TASK: 1.2 Brake & Acceleration Performance
+STATUS: [x] completed
+FILES CHANGED:
+  - backend/app.py (added /api/brake_accel_performance endpoint)
+  - frontend/src/components/BrakeAccelPerformance.jsx (NEW)
+  - frontend/src/App.jsx (imported, added case)
+VERIFICATION: npm run build → SUCCESS. Python AST parse → OK.
+NOTES: Dual-view: scatter plot (peak braking G vs accel G) + grouped bar (braking zone speed reductions). Team-colored.
+---
+
+[ITERATION 3] 2026-04-18T16:30:00+05:30
+TASK: 1.3 Corner Performance Classification
+STATUS: [x] completed
+FILES CHANGED:
+  - backend/app.py (added /api/corner_classification endpoint)
+  - frontend/src/components/CornerClassification.jsx (NEW)
+  - frontend/src/App.jsx (imported, added case)
+VERIFICATION: npm run build → SUCCESS. Python AST parse → OK.
+NOTES: Categorizes corners as Low/Medium/High speed. Dual-view: grouped bar chart + corner-by-corner table with category badges and summary cards.
+---
+
+[ITERATION 4] 2026-04-18T16:30:00+05:30
+TASK: 5.3 Unified Window Close Buttons
+STATUS: [x] completed
+FILES CHANGED:
+  - frontend/src/App.jsx (refactored Throttle/Brake, Steering/Gear, DRS & Acceleration, Delta Analysis cases)
+VERIFICATION: npm run build → SUCCESS.
+NOTES: All 4 modal modules now use WindowCard onClose pattern instead of manual absolute-positioned close buttons. Consistent UI.
+---
+
+[ITERATION 5] 2026-04-18T16:30:00+05:30
+TASK: 6.1 CodeRabbit Integration
+STATUS: [x] completed
+FILES CHANGED:
+  - .coderabbit.yaml (NEW)
+VERIFICATION: File exists with proper YAML structure.
+NOTES: Configured for Python + JSX review with path-specific instructions for backend/, frontend/src/components/, and App.jsx.
+---
+
+# NEXT: Agent should proceed with TASK 2.1 (FP3-to-Qualifying Prediction)

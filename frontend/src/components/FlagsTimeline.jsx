@@ -1,30 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-
-const API_BASE = 'http://127.0.0.1:8001/api';
+import React from 'react';
+import { useFetch } from '../hooks/useFetch';
 
 const FlagsTimeline = ({ year, round, sessionType, onClose }) => {
-    const [messages, setMessages] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-
-    useEffect(() => {
-        if (!year || !round || !sessionType) return;
-        
-        const fetchMessages = async () => {
-            setLoading(true);
-            try {
-                const res = await axios.get(`${API_BASE}/race_control?year=${year}&round=${round}&session_type=${sessionType}`);
-                setMessages(res.data.messages || []);
-            } catch (err) {
-                console.error(err);
-                setError(err.response?.data?.detail || "Failed to fetch race control context.");
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchMessages();
-    }, [year, round, sessionType]);
+    const endpoint = `/race_control?year=${year}&round=${round}&session_type=${sessionType}`;
+    const { data, loading, error } = useFetch(endpoint, [year, round, sessionType]);
+    const messages = data?.messages || [];
 
     const getCategoryColor = (flag) => {
         const f = (flag || '').toUpperCase();

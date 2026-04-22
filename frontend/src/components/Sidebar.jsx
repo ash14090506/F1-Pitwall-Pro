@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { ChevronRight, ChevronDown, Activity, Settings, Zap, Map, FileSearch, Target } from 'lucide-react';
+import { ChevronRight, ChevronDown, Activity, Settings, Zap, Map, FileSearch, Target, Gauge } from 'lucide-react';
 
 const Sidebar = ({ activeModal, onMenuSelect }) => {
-    const [expanded, setExpanded] = useState({ 'overview': true, 'performance': true, 'ideal': true });
+    const [expanded, setExpanded] = useState({ 'overview': true, 'performance': true, 'ideal': true, 'speed': true });
 
     const toggle = (sec) => {
         setExpanded(prev => ({ ...prev, [sec]: !prev[sec] }));
@@ -65,6 +65,21 @@ const Sidebar = ({ activeModal, onMenuSelect }) => {
                     )}
                 </div>
 
+                {/* Speed & Corner Analysis Section */}
+                <div className="mt-2">
+                    <div className="flex items-center px-2 py-1 cursor-pointer hover:bg-[#2b2e36]" onClick={() => toggle('speed')}>
+                        {expanded['speed'] ? <ChevronDown size={14} className="mr-1" /> : <ChevronRight size={14} className="mr-1" />}
+                        <span className="font-semibold">Speed & Corner Analysis</span>
+                    </div>
+                    {expanded['speed'] && (
+                        <div className="pl-6 border-l border-[#2b2e36] ml-3 mt-1 space-y-1">
+                            <div className={`tree-item ${isActive('Straight Line Speed') ? 'active' : ''}`} onClick={() => handleSelect('Straight Line Speed')}><Gauge size={14} /> Straight Line Speed</div>
+                            <div className={`tree-item ${isActive('Brake & Accel Performance') ? 'active' : ''}`} onClick={() => handleSelect('Brake & Accel Performance')}><Zap size={14} /> Brake & Accel Performance</div>
+                            <div className={`tree-item ${isActive('Corner Classification') ? 'active' : ''}`} onClick={() => handleSelect('Corner Classification')}><Map size={14} /> Corner Classification</div>
+                        </div>
+                    )}
+                </div>
+
                 {/* Ideal Lap & Sectors Section */}
                 <div className="mt-2">
                     <div className="flex items-center px-2 py-1 cursor-pointer hover:bg-[#2b2e36]" onClick={() => toggle('ideal')}>
@@ -83,4 +98,4 @@ const Sidebar = ({ activeModal, onMenuSelect }) => {
     );
 };
 
-export default Sidebar;
+export default React.memo(Sidebar);

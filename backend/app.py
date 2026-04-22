@@ -1,9 +1,13 @@
 import os
+import logging
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import fastf1
 import pandas as pd
 import numpy as np
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="F1 Pitwall API", version="1.0")
 
@@ -88,7 +92,12 @@ def get_parsed_session(year: int, round: int, session_type: str):
     key = f"{year}_{round}_{session_type}"
     with session_lock:
         if key not in loaded_sessions:
-            print(f"[{key}] Pandas is parsing telemetry from cache into RAM for the first time... this will take ~30s...")
+            if len(loaded_sessions) >= 3:
+                oldest_key = list(loaded_sessions.keys())[0]
+                del loaded_sessions[oldest_key]
+                logger.info(f"Evicted {oldest_key} from RAM cache to prevent memory bloat.")
+                
+            logger.info(f"[{key}] Pandas is parsing telemetry from cache into RAM for the first time... this will take ~30s...")
             session = fastf1.get_session(year, round, session_type)
             session.load(telemetry=True, laps=True, weather=False)
             
@@ -99,11 +108,11 @@ def get_parsed_session(year: int, round: int, session_type: str):
                 if session.laps is None or len(session.laps) == 0:
                     raise Exception("Missing Laps data.")
             except Exception as e:
-                print(f"[{key}] Validation Failed: No telemetry/laps parsed ({e}). Breaking memory lock so it retries.")
+                logger.error(f"[{key}] Validation Failed: No telemetry/laps parsed ({e}). Breaking memory lock so it retries.")
                 raise ValueError("F1 Live Session Data unavailable. Either the server rejected the connection or the race data is missing.")
             
             loaded_sessions[key] = session
-            print(f"[{key}] Parsing complete. Locked into RAM!")
+            logger.info(f"[{key}] Parsing complete. Locked into RAM!")
             
         return loaded_sessions[key]
 
@@ -133,7 +142,7 @@ def process_telemetry_data(telemetry):
         # Clip absurd outliers resulting from tight slow corners where dx/dy ~= 0
         telemetry['Lat_Accel'] = telemetry['Lat_Accel'].clip(-6.0, 6.0).fillna(0)
     except Exception as e:
-        print(f"Failed to calculate acceleration: {e}")
+        logger.error(f"Failed to calculate acceleration: {e}")
         telemetry['Lon_Accel'] = 0.0
         telemetry['Lat_Accel'] = 0.0
         
@@ -823,6 +832,234 @@ def get_ideal_lap_ranking(year: int, round: int, session_type: str):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/straight_line_speed")
+def get_straight_line_speed(year: int, round: int, session_type: str):
+    """Collect and compare top speed / speed trap data for ALL drivers."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        if session.laps is None or session.laps.empty:
+            raise HTTPException(status_code=404, detail="Laps data not available.")
+
+        results_map = {}
+        if session.results is not None and not session.results.empty:
+            for _, r in session.results.iterrows():
+                results_map[str(r.get("Abbreviation", ""))] = {
+                    "team_name": str(r.get("TeamName", "")),
+                    "team_color": str(r.get("TeamColor", "888888")),
+                }
+
+        driver_speeds = []
+        for drv in session.laps['Driver'].unique():
+            drv_laps = session.laps.pick_driver(drv)
+            if drv_laps.empty:
+                continue
+
+            # Best speed trap from lap data
+            speed_st_values = drv_laps['SpeedST'].dropna()
+            best_speed_trap = float(speed_st_values.max()) if not speed_st_values.empty else None
+
+            # Top speed from telemetry on fastest lap
+            top_speed = None
+            try:
+                fastest = drv_laps.pick_fastest()
+                if not fastest.empty and pd.notnull(fastest['LapTime']):
+                    tel = fastest.get_telemetry()
+                    if tel is not None and not tel.empty and 'Speed' in tel.columns:
+                        top_speed = float(tel['Speed'].max())
+            except Exception:
+                pass
+
+            info = results_map.get(str(drv), {})
+            driver_speeds.append({
+                "driver": str(drv),
+                "top_speed": top_speed,
+                "speed_trap": best_speed_trap,
+                "team_name": info.get("team_name", ""),
+                "team_color": info.get("team_color", "888888"),
+            })
+
+        # Sort by top speed descending (fallback to speed trap)
+        driver_speeds.sort(
+            key=lambda x: x['top_speed'] if x['top_speed'] is not None else (x['speed_trap'] or 0),
+            reverse=True
+        )
+        return {"drivers": driver_speeds}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/brake_accel_performance")
+def get_brake_accel_performance(year: int, round: int, session_type: str, drivers: str):
+    """Scatter plot data for braking and acceleration G-forces."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        dlists = [d.strip() for d in drivers.split(',')]
+
+        results_map = {}
+        if session.results is not None and not session.results.empty:
+            for _, r in session.results.iterrows():
+                results_map[str(r.get("Abbreviation", ""))] = {
+                    "team_color": str(r.get("TeamColor", "888888")),
+                }
+
+        results = []
+        for drv in dlists:
+            drv_laps = session.laps.pick_driver(drv)
+            if drv_laps.empty:
+                continue
+            try:
+                fastest = drv_laps.pick_fastest()
+                if fastest.empty or pd.isnull(fastest['LapTime']):
+                    continue
+            except Exception:
+                continue
+
+            tel = fastest.get_telemetry()
+            tel = process_telemetry_data(tel)
+
+            lon_accel = tel['Lon_Accel'].values
+            lat_accel = tel['Lat_Accel'].values
+            speed_vals = tel['Speed'].values
+            brake_vals = tel['Brake'].values if 'Brake' in tel.columns else np.zeros(len(tel))
+
+            max_braking_g = float(np.nanmin(lon_accel))  # Most negative = hardest braking
+            max_accel_g = float(np.nanmax(lon_accel))
+            max_lat_g = float(np.nanmax(np.abs(lat_accel)))
+
+            # Identify heavy braking zones (Lon_Accel < -2.0 for consecutive points)
+            braking_zones = []
+            in_zone = False
+            zone_start_idx = 0
+            for i in range(len(lon_accel)):
+                if lon_accel[i] < -2.0 and brake_vals[i] > 0:
+                    if not in_zone:
+                        in_zone = True
+                        zone_start_idx = i
+                else:
+                    if in_zone:
+                        in_zone = False
+                        if i - zone_start_idx > 5:  # Filter noise
+                            entry_speed = float(speed_vals[zone_start_idx])
+                            exit_speed = float(speed_vals[min(i, len(speed_vals) - 1)])
+                            peak_decel = float(np.nanmin(lon_accel[zone_start_idx:i]))
+                            braking_zones.append({
+                                "entry_speed": entry_speed,
+                                "exit_speed": exit_speed,
+                                "speed_reduction": entry_speed - exit_speed,
+                                "peak_decel_g": peak_decel,
+                                "distance_start": float(tel['Distance'].iloc[zone_start_idx]),
+                                "distance_end": float(tel['Distance'].iloc[min(i, len(tel) - 1)]),
+                            })
+
+            info = results_map.get(str(drv), {})
+            results.append({
+                "driver": str(drv),
+                "max_braking_g": max_braking_g,
+                "max_accel_g": max_accel_g,
+                "max_lat_g": max_lat_g,
+                "braking_zones": braking_zones[:10],  # Cap at 10 heaviest
+                "team_color": info.get("team_color", "888888"),
+            })
+
+        return {"performance": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/corner_classification")
+def get_corner_classification(year: int, round: int, session_type: str, drivers: str):
+    """Classify corners into low/medium/high speed and compute avg min apex speed per category."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        dlists = [d.strip() for d in drivers.split(',')]
+
+        # Get circuit corners
+        try:
+            circuit = session.get_circuit_info()
+        except Exception:
+            circuit = None
+
+        corner_list = []
+        if circuit is not None and hasattr(circuit, 'corners') and circuit.corners is not None:
+            for _, c in circuit.corners.iterrows():
+                corner_list.append({
+                    "number": int(c.get("Number", 0)),
+                    "distance": float(c.get("Distance", 0.0)),
+                })
+
+        results_map = {}
+        if session.results is not None and not session.results.empty:
+            for _, r in session.results.iterrows():
+                results_map[str(r.get("Abbreviation", ""))] = {
+                    "team_color": str(r.get("TeamColor", "888888")),
+                }
+
+        driver_results = []
+        for drv in dlists:
+            drv_laps = session.laps.pick_driver(drv)
+            if drv_laps.empty:
+                continue
+            try:
+                fastest = drv_laps.pick_fastest()
+                if fastest.empty or pd.isnull(fastest['LapTime']):
+                    continue
+            except Exception:
+                continue
+
+            tel = fastest.get_telemetry()
+            if tel is None or tel.empty:
+                continue
+
+            dist_arr = tel['Distance'].values
+            speed_arr = tel['Speed'].values
+
+            # For each corner, find minimum speed in a window around the corner distance
+            corner_speeds = []
+            for corner in corner_list:
+                cdist = corner['distance']
+                # Search window: ±100m around corner
+                mask = (dist_arr >= cdist - 100) & (dist_arr <= cdist + 100)
+                if mask.any():
+                    min_speed = float(np.nanmin(speed_arr[mask]))
+                    # Classify
+                    if min_speed < 120:
+                        category = "Low"
+                    elif min_speed < 180:
+                        category = "Medium"
+                    else:
+                        category = "High"
+
+                    corner_speeds.append({
+                        "corner_number": corner['number'],
+                        "min_speed": min_speed,
+                        "category": category,
+                    })
+
+            # Compute averages per category
+            categories = {"Low": [], "Medium": [], "High": []}
+            for cs in corner_speeds:
+                categories[cs['category']].append(cs['min_speed'])
+
+            avg_per_category = {}
+            for cat, speeds in categories.items():
+                avg_per_category[cat] = float(np.mean(speeds)) if speeds else None
+
+            info = results_map.get(str(drv), {})
+            driver_results.append({
+                "driver": str(drv),
+                "corners": corner_speeds,
+                "avg_low": avg_per_category.get("Low"),
+                "avg_medium": avg_per_category.get("Medium"),
+                "avg_high": avg_per_category.get("High"),
+                "team_color": info.get("team_color", "888888"),
+            })
+
+        return {"classification": driver_results, "corner_count": len(corner_list)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/clear_cache")
 def clear_backend_memory():
