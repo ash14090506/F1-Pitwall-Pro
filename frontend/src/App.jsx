@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import Sidebar from './components/Sidebar';
 import WindowCard from './components/WindowCard';
@@ -27,18 +27,22 @@ import CornerClassification from './components/CornerClassification';
 import AiPredictions from './components/AiPredictions';
 import HistoricalTrackMap from './components/HistoricalTrackMap';
 import SeasonStartReaction from './components/SeasonStartReaction';
-import { Play } from 'lucide-react';
+import { Play, Sun, Moon, Share2, Check } from 'lucide-react';
 
 const API_BASE = 'http://127.0.0.1:8001/api';
 
 function App() {
   const [races, setRaces] = useState([]);
   const [drivers, setDrivers] = useState([]);
-  
-  const [selectedYear, setSelectedYear] = useState('2026');
-  const [selectedRace, setSelectedRace] = useState('');
-  const [selectedSession, setSelectedSession] = useState('R');
-  const [selectedDrivers, setSelectedDrivers] = useState([]);
+
+  // Read initial state from URL query params for permalink support
+  const _params = new URLSearchParams(window.location.search);
+  const [selectedYear, setSelectedYear] = useState(_params.get('year') || '2026');
+  const [selectedRace, setSelectedRace] = useState(_params.get('round') || '');
+  const [selectedSession, setSelectedSession] = useState(_params.get('session') || 'R');
+  const [selectedDrivers, setSelectedDrivers] = useState(
+    _params.get('drivers') ? _params.get('drivers').split(',') : []
+  );
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -48,6 +52,31 @@ function App() {
   const [activeMenu, setActiveMenu] = useState(null);
   const [activeModal, setActiveModal] = useState(null);
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [shareToast, setShareToast] = useState(false);
+
+  // Theme: persist to localStorage, apply to <html> data-theme
+  const [theme, setTheme] = useState(() => localStorage.getItem('pitwall-theme') || 'dark');
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('pitwall-theme', theme);
+  }, [theme]);
+
+  // Sync toolbar state → URL query params (permalink support)
+  useEffect(() => {
+    const params = new URLSearchParams();
+    params.set('year', selectedYear);
+    if (selectedRace) params.set('round', selectedRace);
+    params.set('session', selectedSession);
+    if (selectedDrivers.length > 0) params.set('drivers', selectedDrivers.join(','));
+    window.history.replaceState(null, '', `?${params.toString()}`);
+  }, [selectedYear, selectedRace, selectedSession, selectedDrivers]);
+
+  const shareAnalysis = useCallback(() => {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      setShareToast(true);
+      setTimeout(() => setShareToast(false), 2000);
+    });
+  }, []);
 
   // Playback States
   const [playbackIndex, setPlaybackIndex] = useState(0);
@@ -426,6 +455,28 @@ function App() {
         {renderMenu('Help', [
           { label: 'About Pitwall Pro', action: () => alert('F1 Pitwall Pro\nMultidocument Web Framework') }
         ])}
+
+        {/* Right-side action buttons */}
+        <div className="ml-auto flex items-center gap-1 pr-1">
+          {/* Share button */}
+          <button
+            onClick={shareAnalysis}
+            title="Copy shareable link to clipboard"
+            className="flex items-center gap-1 px-2 py-0.5 rounded-sm text-[11px] transition-colors hover:bg-[#2b2e36] text-gray-400 hover:text-white"
+          >
+            {shareToast ? <Check size={11} className="text-green-400" /> : <Share2 size={11} />}
+            {shareToast ? <span className="text-green-400">Copied!</span> : <span>Share</span>}
+          </button>
+
+          {/* Theme toggle */}
+          <button
+            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            className="p-1 rounded-sm transition-colors hover:bg-[#2b2e36] text-gray-400 hover:text-white"
+          >
+            {theme === 'dark' ? <Sun size={12} /> : <Moon size={12} />}
+          </button>
+        </div>
       </div>
       
       {/* Global Transparent Overlay to close menus */}

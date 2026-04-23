@@ -1,9 +1,45 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Play, Pause } from 'lucide-react';
 
 const PlaybackControls = ({ maxIndex, playbackIndex, setPlaybackIndex }) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [speed, setSpeed] = useState(2); // Default to 2x since 600 points at 50ms is 30s replay.
+
+    const togglePlay = useCallback(() => {
+        if (playbackIndex >= maxIndex) setPlaybackIndex(0);
+        setIsPlaying(prev => !prev);
+    }, [playbackIndex, maxIndex, setPlaybackIndex]);
+
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT';
+            if (isInput) return;
+
+            switch (e.key) {
+                case ' ':
+                    e.preventDefault();
+                    togglePlay();
+                    break;
+                case 'ArrowLeft':
+                    setPlaybackIndex(prev => Math.max(0, prev - 1));
+                    break;
+                case 'ArrowRight':
+                    setPlaybackIndex(prev => Math.min(maxIndex, prev + 1));
+                    break;
+                case 'Home':
+                    setPlaybackIndex(0);
+                    break;
+                case 'End':
+                    setPlaybackIndex(maxIndex);
+                    break;
+                default:
+                    break;
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [togglePlay, maxIndex, setPlaybackIndex]);
 
     useEffect(() => {
         let interval;
@@ -25,10 +61,7 @@ const PlaybackControls = ({ maxIndex, playbackIndex, setPlaybackIndex }) => {
     return (
         <div className="flex items-center gap-4 bg-[#1b1d24] px-4 py-2 border-t border-[#2b2e36] text-xs w-full shrink-0 shadow-[0_-5px_15px_rgba(0,0,0,0.3)] z-50">
             <button 
-                onClick={() => {
-                    if (playbackIndex >= maxIndex) setPlaybackIndex(0);
-                    setIsPlaying(!isPlaying);
-                }} 
+                onClick={togglePlay} 
                 className="bg-blue-600 hover:bg-blue-500 rounded p-1.5 text-white disabled:opacity-50 transition-colors shadow-sm"
                 disabled={maxIndex === 0}
             >

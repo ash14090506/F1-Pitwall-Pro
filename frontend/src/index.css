@@ -12,6 +12,124 @@
   --accent-mer: #00D2BE;
 }
 
+/*
+ * SOFT MODE — warm, eye-comfortable palette inspired by Notion / macOS Notes
+ * No pure whites, no pure blacks. Everything muted and gentle.
+ *
+ * Palette:
+ *   Desktop bg   #f2ede8  — warm parchment
+ *   Panel bg     #ebe6e0  — slightly darker warm
+ *   Card bg      #f7f3ef  — soft off-white card
+ *   Menu bar     #e5e0da  — muted taupe bar
+ *   Hover        #ddd8d1  — subtle interaction
+ *   Border       #d4cfc8  — barely-there separators
+ *   Text main    #3b3530  — warm dark brown, NOT pure black
+ *   Text muted   #8c857e  — warm gray
+ *   Accent blue  #4a72c4  — desaturated, not electric
+ */
+
+/* === Core background layers === */
+[data-theme="light"] { color-scheme: light; }
+[data-theme="light"] body { background-color: #f2ede8 !important; color: #3b3530 !important; }
+
+/* Desktop canvas */
+[data-theme="light"] .bg-\[\#0b0d10\] { background-color: #f2ede8 !important; }
+/* Toolbar row */
+[data-theme="light"] .bg-\[\#16181d\] { background-color: #ebe6e0 !important; }
+/* Menu bar / window header */
+[data-theme="light"] .bg-\[\#1b1d24\] { background-color: #e5e0da !important; }
+/* Hover / selected bg */
+[data-theme="light"] .bg-\[\#2b2e36\] { background-color: #ddd8d1 !important; }
+/* Window card inner body */
+[data-theme="light"] .bg-\[\#050505\] { background-color: #f7f3ef !important; }
+/* Window outer shell with opacity */
+[data-theme="light"] .bg-\[\#1b1d24\]\/40 { background-color: rgba(229,224,218,0.92) !important; }
+[data-theme="light"] .bg-\[\#1b1d24\]\/80 { background-color: rgba(229,224,218,0.97) !important; }
+
+/* Window card gradient header (top strip of each card) */
+[data-theme="light"] .from-\[\#1b1d24\] { --tw-gradient-from: #dbd6d0 !important; }
+[data-theme="light"] .to-\[\#121419\]   { --tw-gradient-to:   #d2cdc7 !important; }
+
+/* === Borders — very soft === */
+[data-theme="light"] .border-\[\#2b2e36\] { border-color: #d4cfc8 !important; }
+[data-theme="light"] .ring-white\/5  { --tw-ring-color: rgba(0,0,0,0.05) !important; }
+[data-theme="light"] .ring-white\/10 { --tw-ring-color: rgba(0,0,0,0.07) !important; }
+
+/* === Text — warm grays, never pure black === */
+[data-theme="light"] .text-gray-200  { color: #3b3530 !important; }
+[data-theme="light"] .text-gray-300  { color: #4a443e !important; }
+[data-theme="light"] .text-gray-400  { color: #5c554e !important; }
+[data-theme="light"] .text-gray-500  { color: #8c857e !important; }
+[data-theme="light"] .text-gray-600  { color: #8c857e !important; }
+[data-theme="light"] .text-white     { color: #2e2926 !important; }
+/* Muted label text */
+[data-theme="light"] .text-\[\#e2e8f0\] { color: #3b3530 !important; }
+
+/* Section accent colours — desaturated so they don't pop too hard */
+[data-theme="light"] .text-blue-400   { color: #4a72c4 !important; }
+[data-theme="light"] .text-purple-400 { color: #7a5db8 !important; }
+[data-theme="light"] .text-cyan-400   { color: #3a88a8 !important; }
+[data-theme="light"] .text-green-400  { color: #3a8a5a !important; }
+[data-theme="light"] .text-pink-400   { color: #b8527a !important; }
+[data-theme="light"] .text-orange-400 { color: #c47040 !important; }
+[data-theme="light"] .text-sky-400    { color: #3a7ab8 !important; }
+[data-theme="light"] .text-yellow-400 { color: #9a7a30 !important; }
+[data-theme="light"] .text-red-400    { color: #b84040 !important; }
+
+/* === Sidebar === */
+[data-theme="light"] .tree-item {
+  color: #4a6aaa !important;
+}
+[data-theme="light"] .tree-item:hover {
+  background-color: #d8d2cb !important;
+  color: #2e3e6a !important;
+}
+[data-theme="light"] .tree-item.active {
+  background-color: #cfc9c1 !important;
+  color: #2e3e6a !important;
+  border-left-color: #4a72c4 !important;
+}
+
+/* === Toolbar selects === */
+[data-theme="light"] .toolbar-select {
+  background-color: #ede8e2 !important;
+  border-color: #c8c2bb !important;
+  color: #3b3530 !important;
+}
+
+/* === Playback bar & range === */
+[data-theme="light"] .bg-gray-700 { background-color: #c8c2bb !important; }
+[data-theme="light"] .bg-gray-800 { background-color: #d8d2cb !important; }
+[data-theme="light"] .bg-gray-900 { background-color: #e5e0da !important; }
+
+/* === Drop-down menus === */
+[data-theme="light"] .bg-\[\#1b1d24\].border-\[\#2b2e36\].shadow-xl {
+  background-color: #eee9e3 !important;
+  border-color: #d0cbc4 !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.10) !important;
+}
+
+/* === Hover state on menu items === */
+[data-theme="light"] .hover\:bg-\[\#2b2e36\]:hover { background-color: #ddd8d1 !important; }
+
+/* === Scrollbars === */
+[data-theme="light"] ::-webkit-scrollbar-track  { background: #ece7e1; }
+[data-theme="light"] ::-webkit-scrollbar-thumb  { background: #b8b2aa; }
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: #8c857e; }
+
+/* === Error toast === */
+[data-theme="light"] .bg-red-900\/90 { background-color: rgba(245,220,215,0.96) !important; }
+[data-theme="light"] .border-red-500 { border-color: #c07070 !important; }
+[data-theme="light"] .bg-red-900\/90 .text-white { color: #6a2020 !important; }
+
+/* === Modal overlay === */
+[data-theme="light"] .bg-black\/80 { background-color: rgba(0,0,0,0.40) !important; }
+
+/* === Plotly — warm off-white chart area === */
+[data-theme="light"] .js-plotly-plot .plotly .main-svg { background: #f7f3ef !important; }
+
+
+
 body {
   margin: 0;
   font-family: 'Plus Jakarta Sans', sans-serif;
