@@ -19,11 +19,10 @@ const delay = (time) => new Promise((resolve) => setTimeout(resolve, time));
 
         const outputDir = path.resolve(__dirname, '../images');
         
-        // Helper to click an item by its text content
         const clickByText = async (text) => {
             const clicked = await page.evaluate((textToFind) => {
-                const spans = Array.from(document.querySelectorAll('span'));
-                const target = spans.find(s => s.textContent.includes(textToFind));
+                const elements = Array.from(document.querySelectorAll('div.tree-item, span, button'));
+                const target = elements.find(el => el.textContent && el.textContent.trim().includes(textToFind));
                 if (target) {
                     target.click();
                     return true;
@@ -36,6 +35,10 @@ const delay = (time) => new Promise((resolve) => setTimeout(resolve, time));
             }
             return clicked;
         };
+
+        console.log('Fetching telemetry...');
+        await clickByText('Update Analysis');
+        await delay(25000); // Wait 25 seconds for FastF1 and Pandas to fetch and process
 
         console.log('Capturing Main Telemetry...');
         await page.screenshot({ path: path.join(outputDir, 'page01.png') });
@@ -50,13 +53,13 @@ const delay = (time) => new Promise((resolve) => setTimeout(resolve, time));
         await clickByText('7. Multi-Season Analysis');
         await clickByText('8. Live Timing');
 
-        console.log('Capturing Historical Analysis (Temperature)...');
-        if (await clickByText('Temperature Analysis')) {
+        console.log('Capturing Historical Analysis (Pitstop Analysis)...');
+        if (await clickByText('Pitstop Analysis')) {
             await page.screenshot({ path: path.join(outputDir, 'page02.png') });
         }
 
         console.log('Capturing Lap Data...');
-        if (await clickByText('Detailed Lap Data')) {
+        if (await clickByText('Long Run Analysis')) {
             await page.screenshot({ path: path.join(outputDir, 'page04.png') });
         }
 
