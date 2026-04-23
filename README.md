@@ -108,8 +108,6 @@ Year-over-year circuit evolution.
 ### 🔴 8. Live Timing & Strategy (Planned)
 *The future frontier for real-time race weekend integration.*
 
-![Live Timing](images/page12.png)
-
 * **8.1 Core Monitoring:** Ranking Tower, Track Map, Circle Map, Track & Weather.
 * **8.2 Strategy & Prescription:** Driver Strategy, Battle Insight, Chase Strategy, Pit Window, Tyre Strategy.
 * **8.3 Telemetry & Performance:** Real-time Telemetry Traces, Sector Comparison, SF% History, Top Speed History.
