@@ -393,7 +393,7 @@ function App() {
   };
   
   const addDriver = (drv) => {
-      if (drv && !selectedDrivers.includes(drv) && selectedDrivers.length < 5) {
+      if (drv && !selectedDrivers.includes(drv)) {
           setSelectedDrivers(prev => [...prev, drv]);
       }
   };
@@ -473,7 +473,7 @@ function App() {
               </span>
             ))}
           </div>
-          {selectedDrivers.length < 5 && (
+          {selectedDrivers.length < drivers.length && (
             <select className="toolbar-select w-24 ml-2" value="" onChange={e => addDriver(e.target.value)}>
               <option value="">+ Add...</option>
               {drivers.filter(d => !selectedDrivers.includes(d.abbreviation)).map(d => (
