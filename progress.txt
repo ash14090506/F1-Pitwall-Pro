@@ -73,4 +73,17 @@ VERIFICATION: File exists with proper YAML structure.
 NOTES: Configured for Python + JSX review with path-specific instructions for backend/, frontend/src/components/, and App.jsx.
 ---
 
-# NEXT: Agent should proceed with TASK 2.1 (FP3-to-Qualifying Prediction)
+[ITERATION 6] 2026-04-25T17:10:00+05:30
+TASK: 4.1 Speed Heatmap & 5.1 Welcome Dashboard
+STATUS: [x] completed
+FILES CHANGED:
+  - backend/app.py (added /api/standings, added requests import)
+  - backend/requirements.txt (added requests)
+  - frontend/src/components/WelcomeDashboard.jsx (NEW)
+  - frontend/src/App.jsx (integrated WelcomeDashboard fallback)
+  - frontend/src/components/TrackMap.jsx (added Speed Heatmap toggle & multicolored traces)
+VERIFICATION: Backend standings logic verified. Frontend build passes. Heatmap toggle renders correctly with colorscale. Dashboard shows when no telemetry is loaded.
+NOTES: Standings fetch from Ergast mirror. Heatmap uses 'Jet' colorscale for maximum contrast.
+---
+
+# NEXT: Agent should proceed with TASK 4.2 (Sector Comparison Chart)

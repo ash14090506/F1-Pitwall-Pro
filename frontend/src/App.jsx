@@ -30,6 +30,8 @@ import TyreDegradation from './components/TyreDegradation';
 import LapDeltaOverlay from './components/LapDeltaOverlay';
 import PitStrategyGantt from './components/PitStrategyGantt';
 import SectorMiniSplits from './components/SectorMiniSplits';
+import SectorComparisonChart from './components/SectorComparisonChart';
+import WelcomeDashboard from './components/WelcomeDashboard';
 import { Play, Sun, Moon, Share2, Check } from 'lucide-react';
 
 const API_BASE = window.location.port === '5173' ? 'http://127.0.0.1:8001/api' : '/api';
@@ -131,7 +133,9 @@ function App() {
                       <LongRunAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />
                   </WindowCard>
               );
-          case 'Tyre Degradation':
+          case 'Sector Comparison Chart':
+          return <SectorComparisonChart year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />;
+        case 'Tyre Degradation':
               return (
                   <WindowCard title="Tyre Degradation Curves — Stint Analysis" fullSpan={true} onClose={() => setActiveModal(null)}>
                       <TyreDegradation year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />
@@ -642,35 +646,39 @@ function App() {
             </div>
           )}
           
-          <div className="window-grid">
-              
-              {/* Top Row: Speed, Brake, Throttle */}
-              <WindowCard title={`Speed Analysis_${selectedYear}_${selectedSession}`}>
-                <LineChart title="Speed" yLabel="km/h" maxVal={350} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
-              </WindowCard>
-              
-              <WindowCard title={`Brake Analysis_${selectedYear}_${selectedSession}`}>
-                <LineChart title="Brake" yLabel="Pressure %" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
-              </WindowCard>
+          {telemetries.length === 0 && !activeModal ? (
+            <WelcomeDashboard year={selectedYear} />
+          ) : (
+            <div className="window-grid">
+                
+                {/* Top Row: Speed, Brake, Throttle */}
+                <WindowCard title={`Speed Analysis_${selectedYear}_${selectedSession}`}>
+                  <LineChart title="Speed" yLabel="km/h" maxVal={350} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
+                </WindowCard>
+                
+                <WindowCard title={`Brake Analysis_${selectedYear}_${selectedSession}`}>
+                  <LineChart title="Brake" yLabel="Pressure %" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
+                </WindowCard>
 
-              <WindowCard title={`Throttle Analysis_${selectedYear}_${selectedSession}`}>
-                <LineChart title="Throttle" yLabel="%" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
-              </WindowCard>
+                <WindowCard title={`Throttle Analysis_${selectedYear}_${selectedSession}`}>
+                  <LineChart title="Throttle" yLabel="%" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
+                </WindowCard>
 
-              {/* Bottom Row: Gear, RPM, Track Map */}
-              <WindowCard title={`Gear Analysis_${selectedYear}_${selectedSession}`}>
-                <LineChart title="nGear" dataKey="gear" yLabel="Gear" maxVal={9} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
-              </WindowCard>
+                {/* Bottom Row: Gear, RPM, Track Map */}
+                <WindowCard title={`Gear Analysis_${selectedYear}_${selectedSession}`}>
+                  <LineChart title="nGear" dataKey="gear" yLabel="Gear" maxVal={9} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
+                </WindowCard>
 
-              <WindowCard title={`RPM Analysis_${selectedYear}_${selectedSession}`}>
-                <LineChart title="RPM" yLabel="Revs" maxVal={13000} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
-              </WindowCard>
+                <WindowCard title={`RPM Analysis_${selectedYear}_${selectedSession}`}>
+                  <LineChart title="RPM" yLabel="Revs" maxVal={13000} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
+                </WindowCard>
 
-              <WindowCard title={`Track Map_${selectedYear}_${selectedSession}`}>
-                 <TrackMap telemetryData={telemetries} playbackIndex={playbackIndex} allDrivers={drivers} />
-              </WindowCard>
-              
-          </div>
+                <WindowCard title={`Track Map_${selectedYear}_${selectedSession}`}>
+                   <TrackMap telemetryData={telemetries} playbackIndex={playbackIndex} allDrivers={drivers} year={selectedYear} round={selectedRace} sessionType={selectedSession} />
+                </WindowCard>
+                
+            </div>
+          )}
         </div>
       </div>
       {/* Playback Controls Footer */}

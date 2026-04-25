@@ -7,6 +7,7 @@ const API_BASE = 'http://127.0.0.1:8001/api';
 
 const TrackMap = ({ telemetryData, playbackIndex, allDrivers, year, round, sessionType }) => {
     const [circuitInfo, setCircuitInfo] = useState(null);
+    const [showHeatmap, setShowHeatmap] = useState(false);
 
     useEffect(() => {
         if (!year || !round || !sessionType) return;
@@ -34,6 +35,7 @@ const TrackMap = ({ telemetryData, playbackIndex, allDrivers, year, round, sessi
     // Filter out None values in case X/Y aren't fully available
     const baseX = firstValidTelemetry.telemetry.x.filter(v => v !== null);
     const baseY = firstValidTelemetry.telemetry.y.filter(v => v !== null);
+    const baseSpeed = (firstValidTelemetry.telemetry.speed || []).filter((_, i) => firstValidTelemetry.telemetry.x[i] !== null);
 
     if (baseX.length === 0 || baseY.length === 0) {
         return <div className="w-full h-full flex items-center justify-center text-red-500 font-bold tracking-widest text-xs">X/Y Geometry not available for this session</div>;
@@ -41,17 +43,42 @@ const TrackMap = ({ telemetryData, playbackIndex, allDrivers, year, round, sessi
 
     const traces = [];
     
-    // Background circuit path trace
-    traces.push({
-        x: baseX,
-        y: baseY,
-        type: 'scatter',
-        mode: 'lines',
-        line: { color: '#334155', width: 6 }, // Faint Slate color for the full track
-        hoverinfo: 'none',
-        name: 'Circuit Overview',
-        showlegend: false
-    });
+    // Background circuit path trace or Heatmap
+    if (showHeatmap) {
+        traces.push({
+            x: baseX,
+            y: baseY,
+            type: 'scattergl',
+            mode: 'markers',
+            marker: { 
+                size: 6,
+                color: baseSpeed,
+                colorscale: 'Jet',
+                showscale: true,
+                colorbar: {
+                    thickness: 10,
+                    len: 0.5,
+                    y: 0.5,
+                    tickfont: { color: '#94a3b8', size: 10 },
+                    title: { text: 'Speed (km/h)', font: { color: '#94a3b8', size: 10 } }
+                }
+            },
+            hoverinfo: 'none',
+            name: 'Speed Heatmap',
+            showlegend: false
+        });
+    } else {
+        traces.push({
+            x: baseX,
+            y: baseY,
+            type: 'scattergl',
+            mode: 'lines',
+            line: { color: '#334155', width: 6 }, // Faint Slate color for the full track
+            hoverinfo: 'none',
+            name: 'Circuit Overview',
+            showlegend: false
+        });
+    }
 
     const fallbackColors = ['#00D2BE', '#0000FF', '#FF0000', '#FFA500', '#00FF00', '#FF00FF'];
 
@@ -69,13 +96,13 @@ const TrackMap = ({ telemetryData, playbackIndex, allDrivers, year, round, sessi
                 }
             }
 
-            // Draw a trailing tail (last 10 positions)
+            // Draw a trailing tail (last 15 positions)
             const tailLen = 15;
             const startIdx = Math.max(0, playbackIndex - tailLen);
             traces.push({
                 x: telemetry.x.slice(startIdx, playbackIndex + 1),
                 y: telemetry.y.slice(startIdx, playbackIndex + 1),
-                type: 'scatter',
+                type: 'scattergl',
                 mode: 'lines+markers',
                 name: driver,
                 line: { color: color, width: 2 },
@@ -115,29 +142,39 @@ const TrackMap = ({ telemetryData, playbackIndex, allDrivers, year, round, sessi
     }
 
     return (
-        <Plot
-            data={traces}
-            layout={{
-                autosize: true,
-                margin: { l: 20, r: 20, t: 20, b: 20 },
-                paper_bgcolor: 'rgba(0,0,0,0)',
-                plot_bgcolor: 'rgba(0,0,0,0)',
-                showlegend: false,
-                xaxis: { 
-                    visible: false,
-                    scaleanchor: 'y',
-                    scaleratio: 1,
-                    showgrid: false
-                },
-                yaxis: { 
-                    visible: false,
-                    showgrid: false
-                }
-            }}
-            useResizeHandler={true}
-            style={{ width: '100%', height: '100%' }}
-            config={{ displayModeBar: false, responsive: true }}
-        />
+        <div className="relative w-full h-full">
+            <div className="absolute top-2 right-2 z-10 flex gap-2">
+                <button 
+                    onClick={() => setShowHeatmap(!showHeatmap)}
+                    className={`px-3 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider transition-colors border ${showHeatmap ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_10px_rgba(37,99,235,0.5)]' : 'bg-[#1b1d24] border-[#2b2e36] text-gray-400 hover:text-white'}`}
+                >
+                    {showHeatmap ? '🔥 Speed Heatmap ON' : '❄️ Speed Heatmap OFF'}
+                </button>
+            </div>
+            <Plot
+                data={traces}
+                layout={{
+                    autosize: true,
+                    margin: { l: 20, r: 20, t: 20, b: 20 },
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    showlegend: false,
+                    xaxis: { 
+                        visible: false,
+                        scaleanchor: 'y',
+                        scaleratio: 1,
+                        showgrid: false
+                    },
+                    yaxis: { 
+                        visible: false,
+                        showgrid: false
+                    }
+                }}
+                useResizeHandler={true}
+                style={{ width: '100%', height: '100%' }}
+                config={{ displayModeBar: false, responsive: true }}
+            />
+        </div>
     );
 };
 

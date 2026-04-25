@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import fastf1
+import requests
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
@@ -84,6 +85,62 @@ def get_drivers(year: int, round: int, session_type: str, background_tasks: Back
         return {"year": year, "round": round, "session": session_type, "drivers": drivers}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/standings")
+def get_standings(year: int):
+    """Get Driver and Constructor standings from Ergast API."""
+    try:
+        # Drivers
+        d_url = f"https://api.jolpi.ca/ergast/f1/{year}/driverStandings.json"
+        d_res = requests.get(d_url).json()
+        drivers = d_res['MRData']['StandingsTable']['StandingsLists'][0]['DriverStandings']
+        
+        # Constructors
+        c_url = f"https://api.jolpi.ca/ergast/f1/{year}/constructorStandings.json"
+        c_res = requests.get(c_url).json()
+        constructors = c_res['MRData']['StandingsTable']['StandingsLists'][0]['ConstructorStandings']
+        
+        # Progress
+        s_url = f"https://api.jolpi.ca/ergast/f1/{year}.json"
+        s_res = requests.get(s_url).json()
+        total_races = int(s_res['MRData']['total'])
+        
+        # Completed races (look at results for the year)
+        r_url = f"https://api.jolpi.ca/ergast/f1/{year}/results/1.json"
+        r_res = requests.get(r_url).json()
+        completed_races = int(r_res['MRData']['total'])
+        
+        return {
+            "drivers": [
+                {
+                    "pos": d['position'],
+                    "points": d['points'],
+                    "wins": d['wins'],
+                    "driver": d['Driver']['code'] if 'code' in d['Driver'] else d['Driver']['familyName'][:3].upper(),
+                    "full_name": f"{d['Driver']['givenName']} {d['Driver']['familyName']}",
+                    "team": d['Constructors'][0]['name'],
+                    "team_id": d['Constructors'][0]['constructorId']
+                } for d in drivers
+            ],
+            "constructors": [
+                {
+                    "pos": c['position'],
+                    "points": c['points'],
+                    "wins": c['wins'],
+                    "team": c['Constructor']['name'],
+                    "team_id": c['Constructor']['constructorId']
+                } for c in constructors
+            ],
+            "progress": {
+                "total": total_races,
+                "completed": completed_races,
+                "percentage": round((completed_races / total_races) * 100, 1) if total_races > 0 else 0
+            }
+        }
+    except Exception as e:
+        logger.error(f"Failed to fetch standings: {e}")
+        return {"drivers": [], "constructors": [], "progress": {"total": 0, "completed": 0, "percentage": 0}}
 
 
 
@@ -1177,6 +1234,8 @@ def get_sector_map(year: int, round: int, session_type: str, drivers: str):
                 return {
                     "x": seg["X"].replace([np.inf, -np.inf, np.nan], 0.0).tolist(),
                     "y": seg["Y"].replace([np.inf, -np.inf, np.nan], 0.0).tolist(),
+                    "speed": seg["Speed"].replace([np.inf, -np.inf, np.nan], 0.0).tolist(),
+                    "distance": seg["Distance"].replace([np.inf, -np.inf, np.nan], 0.0).tolist(),
                 }
 
             best_s1 = fastest["Sector1Time"].total_seconds()
