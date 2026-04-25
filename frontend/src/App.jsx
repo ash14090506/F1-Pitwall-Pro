@@ -134,7 +134,7 @@ function App() {
                   </WindowCard>
               );
           case 'Sector Comparison Chart':
-          return <SectorComparisonChart year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />;
+              return <SectorComparisonChart year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} onClose={() => setActiveModal(null)} />;
         case 'Tyre Degradation':
               return (
                   <WindowCard title="Tyre Degradation Curves — Stint Analysis" fullSpan={true} onClose={() => setActiveModal(null)}>

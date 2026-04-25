@@ -1161,11 +1161,113 @@ def get_delta_track(year: int, round: int, session_type: str, ref_driver: str, c
         }
     except HTTPException:
         raise
+
+@app.get("/api/telemetry/sector_delta")
+def get_sector_delta(year: int, round: int, session_type: str, ref_driver: str, comp_driver: str, sector: int):
+    """Retrieve speed traces and delta (time/speed) for a specific sector between two drivers."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        
+        ref_laps = session.laps.pick_driver(ref_driver)
+        comp_laps = session.laps.pick_driver(comp_driver)
+        
+        if ref_laps.empty or comp_laps.empty:
+            raise HTTPException(status_code=404, detail="Laps not found for one or more drivers.")
+            
+        ref_lap = ref_laps.pick_fastest()
+        comp_lap = comp_laps.pick_fastest()
+        
+        ref_tel = ref_lap.get_telemetry().add_distance()
+        comp_tel = comp_lap.get_telemetry().add_distance()
+        
+        # Sector boundaries logic
+        def get_sector_mask(lap, tel, s):
+            try:
+                # Session relative times
+                if s == 1:
+                    # Sector1SessionTime - Sector1Time = Start of Sector 1
+                    s1_time = lap["Sector1Time"].total_seconds()
+                    s1_end = lap["Sector1SessionTime"].total_seconds()
+                    start_time = s1_end - s1_time
+                    end_time = s1_end
+                elif s == 2:
+                    start_time = lap["Sector1SessionTime"].total_seconds()
+                    end_time = lap["Sector2SessionTime"].total_seconds()
+                elif s == 3:
+                    start_time = lap["Sector2SessionTime"].total_seconds()
+                    end_time = lap["SessionTime"].total_seconds()
+                else:
+                    return None
+                
+                tel_time = tel["SessionTime"].dt.total_seconds()
+                return (tel_time >= start_time) & (tel_time <= end_time)
+            except Exception:
+                return None
+
+        ref_mask = get_sector_mask(ref_lap, ref_tel, sector)
+        comp_mask = get_sector_mask(comp_lap, comp_tel, sector)
+        
+        if ref_mask is None or comp_mask is None or not ref_mask.any() or not comp_mask.any():
+             # Fallback to distance-based if session times are missing
+             max_dist_ref = ref_tel["Distance"].max()
+             max_dist_comp = comp_tel["Distance"].max()
+             if sector == 1:
+                 ref_mask = ref_tel["Distance"] <= max_dist_ref * 0.33
+                 comp_mask = comp_tel["Distance"] <= max_dist_comp * 0.33
+             elif sector == 2:
+                 ref_mask = (ref_tel["Distance"] > max_dist_ref * 0.33) & (ref_tel["Distance"] <= max_dist_ref * 0.66)
+                 comp_mask = (comp_tel["Distance"] > max_dist_comp * 0.33) & (comp_tel["Distance"] <= max_dist_comp * 0.66)
+             else:
+                 ref_mask = ref_tel["Distance"] > max_dist_ref * 0.66
+                 comp_mask = comp_tel["Distance"] > max_dist_comp * 0.66
+
+        ref_seg = ref_tel[ref_mask].copy()
+        comp_seg = comp_tel[comp_mask].copy()
+        
+        if ref_seg.empty or comp_seg.empty:
+             raise HTTPException(status_code=404, detail="Empty telemetry segment for selected sector.")
+
+        # Normalize distance to 0 at start of sector
+        ref_start_dist = ref_seg["Distance"].iloc[0]
+        ref_seg["Distance_Rel"] = ref_seg["Distance"] - ref_start_dist
+        
+        comp_start_dist = comp_seg["Distance"].iloc[0]
+        comp_seg["Distance_Rel"] = comp_seg["Distance"] - comp_start_dist
+        
+        # To calculate time delta, we need cumulative time from the start of the sector
+        ref_start_time = ref_seg["Time"].iloc[0].total_seconds()
+        ref_seg["Time_Rel"] = ref_seg["Time"].dt.total_seconds() - ref_start_time
+        
+        comp_start_time = comp_seg["Time"].iloc[0].total_seconds()
+        comp_seg["Time_Rel"] = comp_seg["Time"].dt.total_seconds() - comp_start_time
+        
+        # Interpolate comp onto ref distance grid
+        ref_dist = ref_seg["Distance_Rel"].values
+        comp_dist_rel = comp_seg["Distance_Rel"].values
+        
+        comp_time_interp = np.interp(ref_dist, comp_dist_rel, comp_seg["Time_Rel"].values)
+        comp_speed_interp = np.interp(ref_dist, comp_dist_rel, comp_seg["Speed"].values)
+        
+        delta_time = comp_time_interp - ref_seg["Time_Rel"].values
+        delta_speed = comp_speed_interp - ref_seg["Speed"].values
+        
+        return {
+            "ref_driver": ref_driver,
+            "comp_driver": comp_driver,
+            "sector": sector,
+            "data": {
+                "distance": ref_dist.tolist(),
+                "ref_speed": ref_seg["Speed"].tolist(),
+                "comp_speed": comp_speed_interp.tolist(),
+                "delta_time": delta_time.tolist(),
+                "delta_speed": delta_speed.tolist()
+            }
+        }
     except Exception as e:
+        logger.error(f"Error in sector_delta: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/sector_map")
 def get_sector_map(year: int, round: int, session_type: str, drivers: str):
     """Return X/Y track data split by sector for each driver's fastest lap, with best-sector flags."""
     try:

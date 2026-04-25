@@ -66,6 +66,7 @@ const Sidebar = ({ activeModal, onMenuSelect }) => {
                             <div className={`tree-item ${isActive('Delta Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Delta Analysis')}><Activity size={14} /> Delta Analysis</div>
                             <div className={`tree-item ${isActive('Lap-by-Lap Comparison') ? 'active' : ''}`} onClick={() => handleSelect('Lap-by-Lap Comparison')}><FileSearch size={14} /> Lap-by-Lap Comparison</div>
                             <div className={`tree-item ${isActive('Lap Delta Overlay') ? 'active' : ''}`} onClick={() => handleSelect('Lap Delta Overlay')}><Activity size={14} /> 2.4 Lap Delta Overlay</div>
+                            <div className={`tree-item ${isActive('Sector Comparison Chart') ? 'active' : ''}`} onClick={() => handleSelect('Sector Comparison Chart')}><Zap size={14} /> 2.5 Sector Comparison Chart ✦</div>
                         </div>
                     )}
                 </div>
