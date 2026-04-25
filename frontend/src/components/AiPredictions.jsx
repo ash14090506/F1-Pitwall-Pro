@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+
 
 const API_BASE = 'http://127.0.0.1:8001/api';
 
@@ -31,14 +31,14 @@ export default function AiPredictions({ year, round }) {
             setError(null);
             try {
                 const [qRes, rRes] = await Promise.all([
-                    axios.get(`${API_BASE}/predict_qualifying?year=${year}&round=${round}`).catch(e => e.response),
-                    axios.get(`${API_BASE}/predict_race?year=${year}&round=${round}`).catch(e => e.response)
+                    fetch(`${API_BASE}/predict_qualifying?year=${year}&round=${round}`).then(r => r.ok ? r.json() : null).catch(() => null),
+                    fetch(`${API_BASE}/predict_race?year=${year}&round=${round}`).then(r => r.ok ? r.json() : null).catch(() => null)
                 ]);
 
-                if (qRes && qRes.status === 200) setQualiData(qRes.data);
-                if (rRes && rRes.status === 200) setRaceData(rRes.data);
+                if (qRes) setQualiData(qRes);
+                if (rRes) setRaceData(rRes);
                 
-                if ((!qRes || qRes.status !== 200) && (!rRes || rRes.status !== 200)) {
+                if (!qRes && !rRes) {
                     setError("Failed to fetch predictions. Data might be unavailable.");
                 }
             } catch (err) {
@@ -50,6 +50,7 @@ export default function AiPredictions({ year, round }) {
 
         fetchData();
     }, [year, round]);
+
 
     if (loading) return <div className="flex items-center justify-center h-full text-gray-500 text-sm">Running ML Models & Simulations...</div>;
     if (error) return <div className="flex items-center justify-center h-full text-red-400 text-sm">{error}</div>;

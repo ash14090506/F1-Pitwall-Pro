@@ -1,7 +1,9 @@
 import os
+import json
 import logging
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 import fastf1
 import pandas as pd
 import numpy as np
@@ -23,9 +25,10 @@ app.add_middleware(
 )
 
 # Setup FastF1 Cache
-CACHE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "cache"))
+CACHE_DIR = os.getenv("FASTF1_CACHE", os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "cache")))
 os.makedirs(CACHE_DIR, exist_ok=True)
 fastf1.Cache.enable_cache(CACHE_DIR)
+logger.info(f"FastF1 Cache enabled at: {CACHE_DIR}")
 
 @app.get("/")
 def root():
@@ -150,81 +153,77 @@ def process_telemetry_data(telemetry):
         
     return telemetry
 
+def _build_telemetry_payload(driver: str, telemetry, lap_time, lap_number=None) -> dict:
+    """Serialize a single driver's processed telemetry into a dict ready for JSON encoding."""
+    telemetry = telemetry.replace([np.inf, -np.inf, np.nan], None)
+    data = {
+        "distance": telemetry["Distance"].tolist(),
+        "x": telemetry["X"].tolist(),
+        "y": telemetry["Y"].tolist(),
+        "speed": telemetry["Speed"].tolist(),
+        "throttle": telemetry["Throttle"].tolist(),
+        "brake": telemetry["Brake"].tolist(),
+        "rpm": telemetry["RPM"].tolist(),
+        "gear": telemetry["nGear"].tolist(),
+        "drs": telemetry["DRS"].tolist(),
+        "lon_accel": telemetry["Lon_Accel"].tolist(),
+        "lat_accel": telemetry["Lat_Accel"].tolist(),
+        "lap_time": str(lap_time)
+    }
+    payload = {"driver": driver, "telemetry": data}
+    if lap_number is not None:
+        payload["lap_number"] = lap_number
+    return payload
+
+
 @app.get("/api/telemetry/fastest")
 def get_fastest_lap_telemetry(year: int, round: int, session_type: str, driver: str):
-    """Retrieve telemetry for the fastest lap of a specific driver."""
-    try:
-        session = get_parsed_session(year, round, session_type)
-        
-        laps = session.laps.pick_driver(driver)
-        if laps.empty:
-            raise HTTPException(status_code=404, detail="No laps found for this driver.")
-            
-        fastest_lap = laps.pick_fastest()
-        if pd.isnull(fastest_lap['LapTime']):
-            raise HTTPException(status_code=404, detail="No valid fastest lap time found.")
-            
-        telemetry = fastest_lap.get_telemetry()
-        telemetry = process_telemetry_data(telemetry)
-        
-        # Replace NaNs with None for JSON serialization
-        telemetry = telemetry.replace([np.inf, -np.inf, np.nan], None)
-        
-        data = {
-            "distance": telemetry["Distance"].tolist(),
-            "x": telemetry["X"].tolist(),
-            "y": telemetry["Y"].tolist(),
-            "speed": telemetry["Speed"].tolist(),
-            "throttle": telemetry["Throttle"].tolist(),
-            "brake": telemetry["Brake"].tolist(),
-            "rpm": telemetry["RPM"].tolist(),
-            "gear": telemetry["nGear"].tolist(),
-            "drs": telemetry["DRS"].tolist(),
-            "lon_accel": telemetry["Lon_Accel"].tolist(),
-            "lat_accel": telemetry["Lat_Accel"].tolist(),
-            "lap_time": str(fastest_lap['LapTime'])
-        }
-        return {"driver": driver, "telemetry": data}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    """Stream NDJSON telemetry for the fastest lap. Each line is a complete JSON object."""
+    def generate():
+        try:
+            session = get_parsed_session(year, round, session_type)
+            laps = session.laps.pick_driver(driver)
+            if laps.empty:
+                yield json.dumps({"error": "No laps found for this driver."}) + "\n"
+                return
+            fastest_lap = laps.pick_fastest()
+            if pd.isnull(fastest_lap['LapTime']):
+                yield json.dumps({"error": "No valid fastest lap time found."}) + "\n"
+                return
+            tel = fastest_lap.get_telemetry()
+            tel = process_telemetry_data(tel)
+            payload = _build_telemetry_payload(driver, tel, fastest_lap['LapTime'])
+            yield json.dumps(payload) + "\n"
+            yield json.dumps({"done": True}) + "\n"
+        except Exception as e:
+            yield json.dumps({"error": str(e)}) + "\n"
+
+    return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 @app.get("/api/telemetry/lap")
 def get_lap_telemetry(year: int, round: int, session_type: str, driver: str, lap_number: int):
-    """Retrieve telemetry for a specific custom lap of a driver."""
-    try:
-        session = get_parsed_session(year, round, session_type)
-        
-        laps = session.laps.pick_driver(driver)
-        if laps.empty:
-            raise HTTPException(status_code=404, detail="No laps found for this driver.")
-            
-        lap = laps[laps['LapNumber'] == lap_number]
-        if lap.empty:
-            raise HTTPException(status_code=404, detail="Lap number not found.")
-            
-        lap = lap.iloc[0]
-        telemetry = lap.get_telemetry()
-        telemetry = process_telemetry_data(telemetry)
-        
-        telemetry = telemetry.replace([np.inf, -np.inf, np.nan], None)
-        
-        data = {
-            "distance": telemetry["Distance"].tolist(),
-            "x": telemetry["X"].tolist(),
-            "y": telemetry["Y"].tolist(),
-            "speed": telemetry["Speed"].tolist(),
-            "throttle": telemetry["Throttle"].tolist(),
-            "brake": telemetry["Brake"].tolist(),
-            "rpm": telemetry["RPM"].tolist(),
-            "gear": telemetry["nGear"].tolist(),
-            "drs": telemetry["DRS"].tolist(),
-            "lon_accel": telemetry["Lon_Accel"].tolist(),
-            "lat_accel": telemetry["Lat_Accel"].tolist(),
-            "lap_time": str(lap['LapTime'])
-        }
-        return {"driver": driver, "telemetry": data, "lap_number": lap_number}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    """Stream NDJSON telemetry for a specific lap. Each line is a complete JSON object."""
+    def generate():
+        try:
+            session = get_parsed_session(year, round, session_type)
+            laps = session.laps.pick_driver(driver)
+            if laps.empty:
+                yield json.dumps({"error": "No laps found for this driver."}) + "\n"
+                return
+            lap_df = laps[laps['LapNumber'] == lap_number]
+            if lap_df.empty:
+                yield json.dumps({"error": "Lap number not found."}) + "\n"
+                return
+            lap = lap_df.iloc[0]
+            tel = lap.get_telemetry()
+            tel = process_telemetry_data(tel)
+            payload = _build_telemetry_payload(driver, tel, lap['LapTime'], lap_number=lap_number)
+            yield json.dumps(payload) + "\n"
+            yield json.dumps({"done": True}) + "\n"
+        except Exception as e:
+            yield json.dumps({"error": str(e)}) + "\n"
+
+    return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 @app.get("/api/telemetry/delta")
 def get_telemetry_delta(year: int, round: int, session_type: str, ref_driver: str, comp_driver: str):
@@ -1063,12 +1062,159 @@ def get_corner_classification(year: int, round: int, session_type: str, drivers:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/telemetry/delta_track")
+def get_delta_track(year: int, round: int, session_type: str, ref_driver: str, comp_driver: str):
+    """Return X/Y track coordinates with per-point time delta for color-coded track map overlay."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+
+        ref_laps  = session.laps.pick_driver(ref_driver)
+        comp_laps = session.laps.pick_driver(comp_driver)
+        if ref_laps.empty or comp_laps.empty:
+            raise HTTPException(status_code=404, detail="Laps not found for one or both drivers.")
+
+        ref_lap  = ref_laps.pick_fastest()
+        comp_lap = comp_laps.pick_fastest()
+
+        ref_tel  = ref_lap.get_telemetry().add_distance()
+        comp_tel = comp_lap.get_telemetry().add_distance()
+
+        ref_dist  = ref_tel["Distance"].values
+        ref_time  = ref_tel["Time"].dt.total_seconds().values
+        ref_x     = ref_tel["X"].values
+        ref_y     = ref_tel["Y"].values
+
+        comp_dist = comp_tel["Distance"].values
+        comp_time = comp_tel["Time"].dt.total_seconds().values
+
+        # Interpolate comp time onto ref distance grid
+        comp_time_interp = np.interp(ref_dist, comp_dist, comp_time)
+        delta_time = (comp_time_interp - ref_time).tolist()
+
+        # Replace inf/nan
+        delta_time = [0.0 if (v != v or abs(v) > 10) else float(v) for v in delta_time]
+
+        return {
+            "ref_driver":  ref_driver,
+            "comp_driver": comp_driver,
+            "x":           [float(v) if v == v else 0.0 for v in ref_x],
+            "y":           [float(v) if v == v else 0.0 for v in ref_y],
+            "distance":    ref_dist.tolist(),
+            "delta_time":  delta_time,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/sector_map")
+def get_sector_map(year: int, round: int, session_type: str, drivers: str):
+    """Return X/Y track data split by sector for each driver's fastest lap, with best-sector flags."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        dlists  = [d.strip() for d in drivers.split(",") if d.strip()]
+
+        # Overall best sector times across all drivers (for flags)
+        all_laps = session.laps.dropna(subset=["Sector1Time", "Sector2Time", "Sector3Time"])
+        if all_laps.empty:
+            raise HTTPException(status_code=404, detail="No sector data available.")
+
+        overall_best_s1 = all_laps["Sector1Time"].min().total_seconds()
+        overall_best_s2 = all_laps["Sector2Time"].min().total_seconds()
+        overall_best_s3 = all_laps["Sector3Time"].min().total_seconds()
+
+        # Results map for team colors
+        results_map = {}
+        if session.results is not None and not session.results.empty:
+            for _, r in session.results.iterrows():
+                results_map[str(r.get("Abbreviation", ""))] = str(r.get("TeamColor", "888888"))
+
+        driver_data = []
+        for drv in dlists:
+            drv_laps = session.laps.pick_driver(drv).dropna(subset=["Sector1Time", "Sector2Time", "Sector3Time"])
+            if drv_laps.empty:
+                continue
+            fastest = drv_laps.pick_fastest()
+            if pd.isnull(fastest.get("LapTime")):
+                continue
+
+            try:
+                tel = fastest.get_telemetry().add_distance()
+            except Exception:
+                continue
+
+            # Sector boundary times (session relative)
+            s1_end = fastest.get("Sector1SessionTime")
+            s2_end = fastest.get("Sector2SessionTime")
+            lap_start = fastest.get("LapStartTime") if hasattr(fastest, "LapStartTime") else None
+
+            # Fall back to distance-based split (1/3 and 2/3 of lap)
+            if pd.isnull(s1_end) or pd.isnull(s2_end):
+                max_dist = tel["Distance"].max()
+                s1_mask = tel["Distance"] <= max_dist * 0.333
+                s2_mask = (tel["Distance"] > max_dist * 0.333) & (tel["Distance"] <= max_dist * 0.667)
+                s3_mask = tel["Distance"] > max_dist * 0.667
+            else:
+                # Use session-time-based boundaries
+                s1_time = s1_end.total_seconds() if hasattr(s1_end, "total_seconds") else float(s1_end)
+                s2_time = s2_end.total_seconds() if hasattr(s2_end, "total_seconds") else float(s2_end)
+                tel_time = tel["SessionTime"].dt.total_seconds() if "SessionTime" in tel.columns else tel["Time"].dt.total_seconds()
+                start_t  = tel_time.iloc[0]
+                s1_mask  = tel_time <= (start_t + (s1_time - start_t))
+                s2_mask  = (tel_time > (start_t + (s1_time - start_t))) & \
+                           (tel_time <= (start_t + (s2_time - start_t)))
+                s3_mask  = tel_time > (start_t + (s2_time - start_t))
+                # Fallback if masks are empty
+                if s1_mask.sum() < 5 or s3_mask.sum() < 5:
+                    max_dist = tel["Distance"].max()
+                    s1_mask  = tel["Distance"] <= max_dist * 0.333
+                    s2_mask  = (tel["Distance"] > max_dist * 0.333) & (tel["Distance"] <= max_dist * 0.667)
+                    s3_mask  = tel["Distance"] > max_dist * 0.667
+
+            def extract(mask):
+                seg = tel[mask]
+                return {
+                    "x": seg["X"].replace([np.inf, -np.inf, np.nan], 0.0).tolist(),
+                    "y": seg["Y"].replace([np.inf, -np.inf, np.nan], 0.0).tolist(),
+                }
+
+            best_s1 = fastest["Sector1Time"].total_seconds()
+            best_s2 = fastest["Sector2Time"].total_seconds()
+            best_s3 = fastest["Sector3Time"].total_seconds()
+
+            driver_data.append({
+                "driver":     drv,
+                "team_color": results_map.get(drv, "888888"),
+                "s1":         extract(s1_mask),
+                "s2":         extract(s2_mask),
+                "s3":         extract(s3_mask),
+                "s1_time":    float(best_s1),
+                "s2_time":    float(best_s2),
+                "s3_time":    float(best_s3),
+                "s1_is_best": abs(best_s1 - overall_best_s1) < 0.001,
+                "s2_is_best": abs(best_s2 - overall_best_s2) < 0.001,
+                "s3_is_best": abs(best_s3 - overall_best_s3) < 0.001,
+                "s1_delta":   float(best_s1 - overall_best_s1),
+                "s2_delta":   float(best_s2 - overall_best_s2),
+                "s3_delta":   float(best_s3 - overall_best_s3),
+            })
+
+        return {"drivers": driver_data}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/clear_cache")
 def clear_backend_memory():
     """Clear all RAM-locked session variables to force re-parsing of any stuck datasets."""
     with session_lock:
         loaded_sessions.clear()
     return {"status": "cleared"}
+
+
 
 @app.get("/api/predict_qualifying")
 def predict_qualifying(year: int, round: int):

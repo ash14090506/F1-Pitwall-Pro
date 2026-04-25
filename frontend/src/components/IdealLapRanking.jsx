@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+
 
 const API_BASE = 'http://127.0.0.1:8001/api';
 
@@ -76,10 +76,10 @@ const IdealLapRanking = ({ year, round, sessionType, allDrivers }) => {
             setLoading(true);
             setError(null);
             try {
-                const res = await axios.get(`${API_BASE}/ideal_lap`, {
-                    params: { year, round, session_type: sessionType }
-                });
-                setData(res.data);
+                const res = await fetch(`${API_BASE}/ideal_lap?year=${year}&round=${round}&session_type=${sessionType}`);
+                if (!res.ok) throw new Error("Failed to fetch ideal lap data");
+                const result = await res.json();
+                setData(result);
             } catch (err) {
                 console.error(err);
                 setError("Failed to fetch ideal lap data.");
@@ -90,6 +90,7 @@ const IdealLapRanking = ({ year, round, sessionType, allDrivers }) => {
 
         fetchData();
     }, [year, round, sessionType]);
+
 
     const getDriverColor = (drv) => {
         if (!allDrivers) return '#e2e8f0';

@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+.env
+.git
+.gitignore
+data/cache/
+fastf1_cache/
+notebooks/
+tests/

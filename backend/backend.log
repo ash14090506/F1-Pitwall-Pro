@@ -1,0 +1,7 @@
+2026-04-25 06:29:44,836 - app - INFO - FastF1 Cache enabled at: c:\Users\HP\Desktop\f1_strategy_ai\data\cache
+INFO:     Started server process [25308]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+ERROR:    [Errno 10048] error while attempting to bind on address ('0.0.0.0', 8001): [winerror 10048] only one usage of each socket address (protocol/network address/port) is normally permitted
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.

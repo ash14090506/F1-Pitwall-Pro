@@ -39,10 +39,11 @@ const Sidebar = ({ activeModal, onMenuSelect }) => {
                             <div className={`tree-item ${isActive('Temperature Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Temperature Analysis')}><Activity size={14} /> 1.1 Temperature Analysis</div>
                             <div className={`tree-item ${isActive('Track Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Track Analysis')}><Map size={14} /> 1.2 Track Analysis</div>
                             <div className={`tree-item ${isActive('Pitstop Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Pitstop Analysis')}><Clock size={14} /> 1.3 Pitstop Analysis</div>
-                            <div className={`tree-item ${isActive('Accident & Flags Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Accident & Flags Analysis')}><Zap size={14} /> 1.4 Accident & Flags Analysis</div>
-                            <div className={`tree-item ${isActive('Tire Strategy Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Tire Strategy Analysis')}><Target size={14} /> 1.5 Tire Strategy Analysis</div>
-                            <div className={`tree-item ${isActive('Driver Run Position') ? 'active' : ''}`} onClick={() => handleSelect('Driver Run Position')}><Activity size={14} /> 1.6 Driver Run Position</div>
-                            <div className={`tree-item ${isActive('Traffic Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Traffic Analysis')}><Activity size={14} /> 1.7 Traffic Analysis</div>
+                            <div className={`tree-item ${isActive('Pit Strategy Gantt') ? 'active' : ''}`} onClick={() => handleSelect('Pit Strategy Gantt')}><Clock size={14} /> 1.4 Pit Strategy Gantt ✦</div>
+                            <div className={`tree-item ${isActive('Accident & Flags Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Accident & Flags Analysis')}><Zap size={14} /> 1.5 Accident & Flags Analysis</div>
+                            <div className={`tree-item ${isActive('Tire Strategy Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Tire Strategy Analysis')}><Target size={14} /> 1.6 Tire Strategy Analysis</div>
+                            <div className={`tree-item ${isActive('Driver Run Position') ? 'active' : ''}`} onClick={() => handleSelect('Driver Run Position')}><Activity size={14} /> 1.7 Driver Run Position</div>
+                            <div className={`tree-item ${isActive('Traffic Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Traffic Analysis')}><Activity size={14} /> 1.8 Traffic Analysis</div>
                         </div>
                     )}
                 </div>
@@ -64,6 +65,7 @@ const Sidebar = ({ activeModal, onMenuSelect }) => {
                             <div className="text-[10px] text-gray-500 font-bold uppercase mt-2 mb-1 px-2">2.3 Delta Analysis</div>
                             <div className={`tree-item ${isActive('Delta Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Delta Analysis')}><Activity size={14} /> Delta Analysis</div>
                             <div className={`tree-item ${isActive('Lap-by-Lap Comparison') ? 'active' : ''}`} onClick={() => handleSelect('Lap-by-Lap Comparison')}><FileSearch size={14} /> Lap-by-Lap Comparison</div>
+                            <div className={`tree-item ${isActive('Lap Delta Overlay') ? 'active' : ''}`} onClick={() => handleSelect('Lap Delta Overlay')}><Activity size={14} /> 2.4 Lap Delta Overlay</div>
                         </div>
                     )}
                 </div>
@@ -81,6 +83,7 @@ const Sidebar = ({ activeModal, onMenuSelect }) => {
                             <div className={`tree-item ${isActive('Throttle Corner Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Throttle Corner Analysis')}><Map size={14} /> 3.3 Throttle Corner Analysis</div>
                             <div className={`tree-item ${isActive('Pedal Behavior Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Pedal Behavior Analysis')}><Activity size={14} /> 3.4 Pedal Behavior Analysis</div>
                             <div className={`tree-item ${isActive('Long Run Analysis') ? 'active' : ''}`} onClick={() => handleSelect('Long Run Analysis')}><Activity size={14} /> 3.5 Long Run Analysis</div>
+                            <div className={`tree-item ${isActive('Tyre Degradation') ? 'active' : ''}`} onClick={() => handleSelect('Tyre Degradation')}><Activity size={14} /> 3.6 Tyre Degradation</div>
                         </div>
                     )}
                 </div>
@@ -94,6 +97,7 @@ const Sidebar = ({ activeModal, onMenuSelect }) => {
                     {expanded['sec4'] && (
                         <div className="pl-6 border-l border-[#2b2e36] ml-3 mt-1 space-y-0.5">
                             <div className={`tree-item ${isActive('Ideal Lap Ranking') ? 'active' : ''}`} onClick={() => handleSelect('Ideal Lap Ranking')}><Target size={14} /> Sector Reconstruction</div>
+                            <div className={`tree-item ${isActive('Sector Mini-Splits') ? 'active' : ''}`} onClick={() => handleSelect('Sector Mini-Splits')}><Map size={14} /> Sector Mini-Splits ✦</div>
                         </div>
                     )}
                 </div>

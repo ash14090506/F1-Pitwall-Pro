@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import ReactPlot from 'react-plotly.js';
 
 // Safely extract the default export due to Vite/CommonJS interop quirks with react-plotly.js
 const Plot = ReactPlot.default || ReactPlot;
 
-const LineChart = ({ title, dataKey, yLabel, telemetryData, maxVal, allDrivers, playbackIndex, fixedXMax, hoverDistance, onHoverChange }) => {
+const LineChart = React.memo(({ title, dataKey, yLabel, telemetryData, maxVal, allDrivers, playbackIndex, fixedXMax, hoverDistance, onHoverChange }) => {
     // If no data, render skeleton
     if (!telemetryData || telemetryData.length === 0) {
         return <div className="w-full h-full flex items-center justify-center text-gray-600 text-xs">Waiting for telemetry...</div>;
@@ -12,40 +12,41 @@ const LineChart = ({ title, dataKey, yLabel, telemetryData, maxVal, allDrivers, 
 
     const key = dataKey || title.toLowerCase();
     const fallbackColors = ['#00D2BE', '#0000FF', '#FF0000', '#FFA500', '#00FF00', '#FF00FF'];
-    
-    const usedColors = {};
 
-    const traces = telemetryData.map((data, index) => {
-        const { telemetry, driver } = data;
-        let color = fallbackColors[index % fallbackColors.length];
-        
-        if (allDrivers) {
-            const drvInfo = allDrivers.find(d => d.abbreviation === driver);
-            if (drvInfo && drvInfo.team_color) {
-                // team_color from fastf1 is often a hex string without hash
-                color = drvInfo.team_color.startsWith('#') ? drvInfo.team_color : `#${drvInfo.team_color}`;
+    // Memoize traces so Plotly only rebuilds when data or playback position actually changes
+    const traces = useMemo(() => {
+        const usedColors = {};
+        return telemetryData.map((data, index) => {
+            const { telemetry, driver } = data;
+            let color = fallbackColors[index % fallbackColors.length];
+
+            if (allDrivers) {
+                const drvInfo = allDrivers.find(d => d.abbreviation === driver);
+                if (drvInfo && drvInfo.team_color) {
+                    color = drvInfo.team_color.startsWith('#') ? drvInfo.team_color : `#${drvInfo.team_color}`;
+                }
             }
-        }
-        
-        // Visually differentiate teammates (who share the same color)
-        let dashStyle = 'solid';
-        if (usedColors[color]) {
-            dashStyle = usedColors[color] === 1 ? 'dash' : 'dot';
-            usedColors[color]++;
-        } else {
-            usedColors[color] = 1;
-        }
 
-        return {
-            x: telemetry.distance.slice(0, playbackIndex !== undefined ? playbackIndex + 1 : undefined),
-            y: telemetry[key].slice(0, playbackIndex !== undefined ? playbackIndex + 1 : undefined),
-            type: 'scatter',
-            mode: 'lines',
-            name: driver,
-            line: { color: color, width: 2, dash: dashStyle },
-            hovertemplate: '%{x}m<br>%{y}'
-        };
-    });
+            let dashStyle = 'solid';
+            if (usedColors[color]) {
+                dashStyle = usedColors[color] === 1 ? 'dash' : 'dot';
+                usedColors[color]++;
+            } else {
+                usedColors[color] = 1;
+            }
+
+            return {
+                x: telemetry.distance.slice(0, playbackIndex !== undefined ? playbackIndex + 1 : undefined),
+                y: telemetry[key].slice(0, playbackIndex !== undefined ? playbackIndex + 1 : undefined),
+                type: 'scatter',
+                mode: 'lines',
+                name: driver,
+                line: { color: color, width: 2, dash: dashStyle },
+                hovertemplate: '%{x}m<br>%{y}'
+            };
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [telemetryData, key, playbackIndex, allDrivers]);
 
     return (
         <Plot
@@ -99,6 +100,6 @@ const LineChart = ({ title, dataKey, yLabel, telemetryData, maxVal, allDrivers, 
             config={{ displayModeBar: false, responsive: true }}
         />
     );
-};
+});
 
 export default LineChart;

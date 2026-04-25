@@ -131,9 +131,22 @@ Year-over-year circuit evolution.
 
 ---
 
+---
+
 ## 🚀 Installation & Directives
 
-### 1. Backend Spin-Up (Python)
+### 🐳 Option A: Docker Deployment (Recommended)
+The easiest way to run the entire suite with persistent caching and pre-configured networking:
+```bash
+# Start the entire stack in detached mode
+docker-compose up -d --build
+
+# Access the dashboard at http://localhost
+```
+
+### 🐍 Option B: Manual Installation
+
+#### 1. Backend Spin-Up (Python)
 First, ensure your device has Python installed, then map the dependencies:
 ```bash
 # Navigate to the workspace
@@ -146,7 +159,7 @@ pip install -r requirements.txt
 python app.py
 ```
 
-### 2. Frontend Launch (Vite/React)
+#### 2. Frontend Launch (Vite/React)
 In a secondary terminal window, activate the visual layer:
 ```bash
 cd frontend

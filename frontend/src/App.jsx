@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import axios from 'axios';
 import Sidebar from './components/Sidebar';
 import WindowCard from './components/WindowCard';
 import LineChart from './components/LineChart';
@@ -27,9 +26,13 @@ import CornerClassification from './components/CornerClassification';
 import AiPredictions from './components/AiPredictions';
 import HistoricalTrackMap from './components/HistoricalTrackMap';
 import SeasonStartReaction from './components/SeasonStartReaction';
+import TyreDegradation from './components/TyreDegradation';
+import LapDeltaOverlay from './components/LapDeltaOverlay';
+import PitStrategyGantt from './components/PitStrategyGantt';
+import SectorMiniSplits from './components/SectorMiniSplits';
 import { Play, Sun, Moon, Share2, Check } from 'lucide-react';
 
-const API_BASE = 'http://127.0.0.1:8001/api';
+const API_BASE = window.location.port === '5173' ? 'http://127.0.0.1:8001/api' : '/api';
 
 function App() {
   const [races, setRaces] = useState([]);
@@ -126,6 +129,30 @@ function App() {
               return (
                   <WindowCard title="FP2 Long Run Analysis & Fuel Correction" fullSpan={true} onClose={() => setActiveModal(null)}>
                       <LongRunAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />
+                  </WindowCard>
+              );
+          case 'Tyre Degradation':
+              return (
+                  <WindowCard title="Tyre Degradation Curves — Stint Analysis" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <TyreDegradation year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />
+                  </WindowCard>
+              );
+          case 'Lap Delta Overlay':
+              return (
+                  <WindowCard title="Lap Delta — Gap vs. Distance + Track Map" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <LapDeltaOverlay year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />
+                  </WindowCard>
+              );
+          case 'Pit Strategy Gantt':
+              return (
+                  <WindowCard title="Pit Stop Strategy — Gantt Timeline" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <PitStrategyGantt year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} />
+                  </WindowCard>
+              );
+          case 'Sector Mini-Splits':
+              return (
+                  <WindowCard title="Sector Mini-Splits — Track Map" fullSpan={true} onClose={() => setActiveModal(null)}>
+                      <SectorMiniSplits year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />
                   </WindowCard>
               );
           case 'Pedal Behavior Analysis':
@@ -319,10 +346,12 @@ function App() {
 
   const fetchRaces = async (year) => {
     try {
-      const res = await axios.get(`${API_BASE}/races?year=${year}`);
-      setRaces(res.data.races);
-      if (res.data.races.length > 0) {
-        setSelectedRace(res.data.races[0].round.toString());
+      const res = await fetch(`${API_BASE}/races?year=${year}`);
+      if (!res.ok) throw new Error("Failed to fetch races");
+      const data = await res.json();
+      setRaces(data.races);
+      if (data.races.length > 0) {
+        setSelectedRace(data.races[0].round.toString());
       }
     } catch (err) {
       console.error(err);
@@ -331,14 +360,22 @@ function App() {
     }
   };
 
+
   const fetchDrivers = async (year, round, sessionType) => {
     try {
-      const res = await axios.get(`${API_BASE}/drivers?year=${year}&round=${round}&session_type=${sessionType}`);
-      setDrivers(res.data.drivers);
-      if (res.data.drivers.length >= 2) {
-        setSelectedDrivers([res.data.drivers[0].abbreviation, res.data.drivers[1].abbreviation]);
-      } else if (res.data.drivers.length === 1) {
-        setSelectedDrivers([res.data.drivers[0].abbreviation]);
+      const res = await fetch(`${API_BASE}/drivers?year=${year}&round=${round}&session_type=${sessionType}`);
+      if (!res.ok) {
+        if (res.status === 500) {
+          throw new Error(`The ${sessionType} session is completely unavailable or did not occur during this race weekend.`);
+        }
+        throw new Error(`Failed to fetch drivers for the ${sessionType} session.`);
+      }
+      const data = await res.json();
+      setDrivers(data.drivers);
+      if (data.drivers.length >= 2) {
+        setSelectedDrivers([data.drivers[0].abbreviation, data.drivers[1].abbreviation]);
+      } else if (data.drivers.length === 1) {
+        setSelectedDrivers([data.drivers[0].abbreviation]);
       } else {
         setSelectedDrivers([]);
       }
@@ -346,76 +383,116 @@ function App() {
       console.error(err);
       setDrivers([]);
       setSelectedDrivers([]);
-      if (err.response && err.response.status === 500) {
-          setError(`The ${sessionType} session is completely unavailable or did not occur during this race weekend.`);
-      } else {
-          setError(`Failed to fetch drivers for the ${sessionType} session.`);
-      }
+      setError(err.message);
     }
   };
 
-  const loadTelemetry = async () => {
+
+  /**
+   * Reads an NDJSON streaming response from the given URL and calls onData(parsedObject)
+   * incrementally for every line received. Returns a promise that resolves once the stream ends.
+   */
+  const readNDJSONStream = useCallback(async (url, onData, signal) => {
+    const res = await fetch(url, { signal });
+    if (!res.ok) {
+      let detail = res.statusText;
+      try { const j = await res.json(); detail = j.detail || detail; } catch (_) {}
+      throw new Error(detail);
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // last element may be incomplete
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const obj = JSON.parse(line);
+        if (obj.done) break;
+        if (obj.error) throw new Error(obj.error);
+        onData(obj);
+      }
+    }
+  }, []);
+
+  const loadTelemetry = useCallback(async () => {
     if (selectedDrivers.length === 0 || !selectedRace) return;
     setLoading(true);
     setError(null);
+    setTelemetries([]);  // clear previous data immediately for clean slate
     try {
-      const requests = selectedDrivers.map(drv => 
-        axios.get(`${API_BASE}/telemetry/fastest?year=${selectedYear}&round=${selectedRace}&session_type=${selectedSession}&driver=${drv}`)
-      );
-      const responses = await Promise.all(requests);
-      const data = responses.map(res => res.data);
-      setTelemetries(data);
-      
-      if (data.length > 0 && data[0].telemetry && data[0].telemetry.distance) {
-          const maxDist = Math.max(...data.map(d => d.telemetry.distance[d.telemetry.distance.length - 1] || 0));
-          const maxIdx = Math.max(...data.map(d => d.telemetry.distance.length - 1));
-          setMaxDistance(maxDist);
-          setMaxPlaybackIndex(maxIdx);
-          setPlaybackIndex(maxIdx); // Default to fully loaded view until user clicks play
-      }
+      // Stream each driver in parallel — each arrives independently
+      await Promise.all(selectedDrivers.map((drv) => {
+        const url = `${API_BASE}/telemetry/fastest?year=${selectedYear}&round=${selectedRace}&session_type=${selectedSession}&driver=${drv}`;
+        return readNDJSONStream(url, (payload) => {
+          setTelemetries(prev => {
+            // Replace existing entry for this driver if present (dedup), otherwise append
+            const exists = prev.findIndex(d => d.driver === payload.driver);
+            if (exists >= 0) {
+              const updated = [...prev];
+              updated[exists] = payload;
+              return updated;
+            }
+            return [...prev, payload];
+          });
+          // Update distance / index bounds as data arrives
+          if (payload.telemetry?.distance) {
+            const dist = payload.telemetry.distance;
+            setMaxDistance(prev => Math.max(prev, dist[dist.length - 1] || 0));
+            setMaxPlaybackIndex(prev => Math.max(prev, dist.length - 1));
+            setPlaybackIndex(dist.length - 1);
+          }
+        });
+      }));
     } catch (err) {
-      console.error(err);
-      if (err.response && err.response.data && err.response.data.detail) {
-          setError(`Failed: ${err.response.data.detail}`);
-      } else {
-          setError("Failed to fetch telemetry data. FastF1 cache may still be spinning up or race data is unavailable.");
+      if (err.name !== 'AbortError') {
+        setError(err.message || 'Failed to fetch telemetry data. FastF1 cache may still be spinning up or race data is unavailable.');
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedDrivers, selectedRace, selectedYear, selectedSession, readNDJSONStream]);
 
-  const handleLoadSpecificLaps = async (lapSelections) => {
+
+  const handleLoadSpecificLaps = useCallback(async (lapSelections) => {
     if (Object.keys(lapSelections).length === 0) return;
     setLoading(true);
     setError(null);
+    setTelemetries([]);
     try {
-      const requests = Object.entries(lapSelections).map(([drv, lapNum]) => 
-        axios.get(`${API_BASE}/telemetry/lap?year=${selectedYear}&round=${selectedRace}&session_type=${selectedSession}&driver=${drv}&lap_number=${lapNum}`)
-      );
-      const responses = await Promise.all(requests);
-      const data = responses.map(res => res.data);
-      setTelemetries(data);
-      
-      if (data.length > 0 && data[0].telemetry && data[0].telemetry.distance) {
-          const maxDist = Math.max(...data.map(d => d.telemetry.distance[d.telemetry.distance.length - 1] || 0));
-          const maxIdx = Math.max(...data.map(d => d.telemetry.distance.length - 1));
-          setMaxDistance(maxDist);
-          setMaxPlaybackIndex(maxIdx);
-          setPlaybackIndex(maxIdx);
-      }
-      setActiveModal(null); // Close modal automatically upon plotting
+      await Promise.all(Object.entries(lapSelections).map(([drv, lapNum]) => {
+        const url = `${API_BASE}/telemetry/lap?year=${selectedYear}&round=${selectedRace}&session_type=${selectedSession}&driver=${drv}&lap_number=${lapNum}`;
+        return readNDJSONStream(url, (payload) => {
+          setTelemetries(prev => {
+            const exists = prev.findIndex(d => d.driver === payload.driver);
+            if (exists >= 0) {
+              const updated = [...prev];
+              updated[exists] = payload;
+              return updated;
+            }
+            return [...prev, payload];
+          });
+          if (payload.telemetry?.distance) {
+            const dist = payload.telemetry.distance;
+            setMaxDistance(prev => Math.max(prev, dist[dist.length - 1] || 0));
+            setMaxPlaybackIndex(prev => Math.max(prev, dist.length - 1));
+            setPlaybackIndex(dist.length - 1);
+          }
+        });
+      }));
+      setActiveModal(null);
     } catch (err) {
-      console.error(err);
-      if (err.response && err.response.data && err.response.data.detail) {
-          setError(`Failed: ${err.response.data.detail}`);
-      } else {
-          setError("Failed to fetch custom lap telemetry data.");
+      if (err.name !== 'AbortError') {
+        setError(err.message || 'Failed to fetch custom lap telemetry data.');
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedDrivers, selectedRace, selectedYear, selectedSession, readNDJSONStream]);
+
 
   const removeDriver = (drv) => {
       setSelectedDrivers(prev => prev.filter(d => d !== drv));
@@ -444,7 +521,7 @@ function App() {
         ])}
         {renderMenu('Analysis', [
           { label: 'Clear Telemetry Cache', action: async () => { 
-            try { await axios.get(`${API_BASE}/clear_cache`); } catch (err) { console.error(err); };
+            try { await fetch(`${API_BASE}/clear_cache`); } catch (err) { console.error(err); };
             setTelemetries([]); 
             setSelectedDrivers([]); 
           } }

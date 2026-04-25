@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+  # ─── FastAPI Backend ─────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pitwall-backend
+    ports:
+      - "8001:8001"
+    volumes:
+      # Persist FastF1 data cache between container restarts
+      - fastf1_data:/app/fastf1_cache
+    environment:
+      - FASTF1_CACHE=/app/fastf1_cache
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ─── React / Vite Frontend ───────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pitwall-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  fastf1_data:
+    driver: local
+
