@@ -33,7 +33,8 @@ import PitStrategyGantt from './components/PitStrategyGantt';
 import SectorMiniSplits from './components/SectorMiniSplits';
 import SectorComparisonChart from './components/SectorComparisonChart';
 import WelcomeDashboard from './components/WelcomeDashboard';
-import { Play, Sun, Moon, Share2, Check } from 'lucide-react';
+import RadioPlayer from './components/RadioPlayer';
+import { Play, Sun, Moon, Share2, Check, Radio } from 'lucide-react';
 
 const API_BASE = window.location.port === '5173' ? 'http://127.0.0.1:8001/api' : '/api';
 
@@ -61,6 +62,10 @@ function App() {
   const [focusedFloatingWindow, setFocusedFloatingWindow] = useState(null);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [shareToast, setShareToast] = useState(false);
+
+  // Team radio state
+  const [radioClips, setRadioClips] = useState([]);
+  const [radioEnabled, setRadioEnabled] = useState(true);
 
   // Auto-restore workspace on initial load
   useEffect(() => {
@@ -348,6 +353,20 @@ function App() {
     }
   }, []);
 
+  // Fetch team radio clips for the current session
+  const fetchRadioClips = useCallback(async () => {
+    if (!selectedRace || !selectedYear) return;
+    try {
+      const driversParam = selectedDrivers.length > 0 ? `&drivers=${selectedDrivers.join(',')}` : '';
+      const res = await fetch(`${API_BASE}/team_radio?year=${selectedYear}&round=${selectedRace}&session_type=${selectedSession}${driversParam}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setRadioClips(data.clips || []);
+    } catch (e) {
+      console.warn('[Radio] Failed to fetch radio clips:', e);
+    }
+  }, [selectedRace, selectedYear, selectedSession, selectedDrivers]);
+
   const loadTelemetry = useCallback(async () => {
     if (selectedDrivers.length === 0 || !selectedRace) return;
     setLoading(true);
@@ -388,8 +407,10 @@ function App() {
       }
     } finally {
       setLoading(false);
+      // After telemetry is loaded, fetch radio clips in the background
+      fetchRadioClips();
     }
-  }, [selectedDrivers, selectedRace, selectedYear, selectedSession, readNDJSONStream]);
+  }, [selectedDrivers, selectedRace, selectedYear, selectedSession, readNDJSONStream, fetchRadioClips]);
 
 
   const handleLoadSpecificLaps = useCallback(async (lapSelections) => {
@@ -562,6 +583,23 @@ function App() {
           <Play size={12} fill="currentColor" />
           {loading ? 'Analyzing...' : 'Update Analysis'}
         </button>
+
+        {/* Radio toggle */}
+        <button
+          onClick={() => setRadioEnabled(e => !e)}
+          title={radioEnabled ? 'Mute team radio' : 'Enable team radio'}
+          className={`flex items-center gap-1.5 px-2 py-1.5 rounded-sm text-xs font-semibold transition-all ml-2 ${
+            radioEnabled
+              ? 'bg-blue-600/20 text-blue-400 border border-blue-500/50 hover:bg-blue-600/30'
+              : 'text-gray-500 hover:bg-[#2b2e36] border border-transparent'
+          }`}
+        >
+          <Radio size={12} />
+          Radio {radioEnabled ? 'ON' : 'OFF'}
+          {radioClips.length > 0 && radioEnabled && (
+            <span className="text-[9px] bg-blue-500 text-white px-1 rounded-full">{radioClips.length}</span>
+          )}
+        </button>
       </div>
 
       {/* Main Workspace Layout */}
@@ -638,12 +676,27 @@ function App() {
           )}
         </div>
       </div>
-      {/* Playback Controls Footer */}
-      <PlaybackControls 
-         maxIndex={maxPlaybackIndex} 
-         playbackIndex={playbackIndex} 
-         setPlaybackIndex={setPlaybackIndex} 
-      />
+      {/* Playback Controls + Radio Footer */}
+      <div className="flex items-center bg-[#1b1d24] border-t border-[#2b2e36] shrink-0">
+        <div className="flex-1 min-w-0">
+          <PlaybackControls 
+             maxIndex={maxPlaybackIndex} 
+             playbackIndex={playbackIndex} 
+             setPlaybackIndex={setPlaybackIndex} 
+          />
+        </div>
+        {radioClips.length > 0 && (
+          <div className="flex items-center px-3 py-1.5 border-l border-[#2b2e36] shrink-0">
+            <RadioPlayer
+              clips={radioClips}
+              playbackIndex={playbackIndex}
+              telemetryData={telemetries}
+              isEnabled={radioEnabled}
+              driverColors={Object.fromEntries(drivers.map(d => [d.abbreviation, d.team_color || '3b82f6']))}
+            />
+          </div>
+        )}
+      </div>
     </div>
     </ErrorBoundary>
   );

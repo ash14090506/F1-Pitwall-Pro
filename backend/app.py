@@ -145,6 +145,87 @@ def get_standings(year: int):
 
 
 
+@app.get("/api/team_radio")
+def get_team_radio(year: int, round: int, session_type: str, drivers: str = ""):
+    """
+    Get team radio clips for a session, optionally filtered by driver abbreviation(s).
+    Returns a list of clips: {driver, session_time_s, url, utc_time}
+    Audio URLs are constructed from the official F1 live timing CDN.
+    """
+    try:
+        cache_key = f"{year}_{round}_{session_type}"
+        
+        # Attempt to re-use the already-parsed session from RAM cache (avoids redundant disk reads)
+        session = loaded_sessions.get(cache_key, None)
+        
+        # Check if team_radio attribute is actually available on the cached session
+        radio_available = False
+        if session is not None:
+            try:
+                tr = session.team_radio
+                radio_available = (tr is not None and not tr.empty)
+            except Exception:
+                radio_available = False
+        
+        if not radio_available:
+            logger.info(f"[team_radio] Loading {cache_key} with messages=True (no cache hit)")
+            session = fastf1.get_session(year, round, session_type)
+            session.load(telemetry=False, laps=False, weather=False, messages=True)
+
+        
+        radio_df = session.team_radio
+        
+        if radio_df is None or radio_df.empty:
+            return {"clips": [], "message": "No team radio data available for this session."}
+        
+        # Optionally filter by specific drivers
+        driver_list = [d.strip().upper() for d in drivers.split(",") if d.strip()]
+        if driver_list:
+            radio_df = radio_df[radio_df["Driver"].str.upper().isin(driver_list)]
+        
+        F1_CDN_BASE = "https://livetiming.formula1.com/static"
+        clips = []
+        
+        for _, row in radio_df.iterrows():
+            try:
+                recording_url = str(row.get("RecordingURL", "") or "")
+                if not recording_url:
+                    continue
+                
+                # Build full CDN URL
+                full_url = f"{F1_CDN_BASE}/{recording_url.lstrip('/')}"
+                
+                # Convert SessionTime (timedelta) to total seconds
+                session_time = row.get("SessionTime", None)
+                if session_time is None or pd.isnull(session_time):
+                    continue
+                session_time_s = session_time.total_seconds() if hasattr(session_time, 'total_seconds') else float(session_time)
+                
+                # UTC timestamp
+                utc_time = row.get("Date", None)
+                utc_str = str(utc_time) if utc_time is not None and not pd.isnull(utc_time) else None
+                
+                clips.append({
+                    "driver": str(row.get("Driver", "UNK")),
+                    "session_time_s": round(session_time_s, 2),
+                    "url": full_url,
+                    "utc_time": utc_str
+                })
+            except Exception as e:
+                logger.warning(f"[team_radio] Skipping malformed clip row: {e}")
+                continue
+        
+        # Sort by session time ascending
+        clips.sort(key=lambda c: c["session_time_s"])
+        
+        logger.info(f"[team_radio] Returning {len(clips)} clips for {cache_key}")
+        return {"clips": clips, "total": len(clips)}
+        
+    except Exception as e:
+        logger.error(f"[team_radio] Failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 import threading
 
 # In-memory RAM cache for parsed FastF1 sessions to avoid redundant Pandas processing overhead
