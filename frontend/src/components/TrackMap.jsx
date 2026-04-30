@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactPlot from 'react-plotly.js';
 import axios from 'axios';
+import LiveLeaderboard from './LiveLeaderboard';
 
 const Plot = ReactPlot.default || ReactPlot;
 const API_BASE = 'http://127.0.0.1:8001/api';
@@ -114,6 +115,41 @@ const TrackMap = ({ telemetryData, playbackIndex, allDrivers, year, round, sessi
                 hovertemplate: `<span style="font-weight:900">${driver}</span><br>GPS X: %{x:.0f}<br>GPS Y: %{y:.0f}<extra></extra>`
             });
         });
+        
+        // Render Safety Car once if it exists in any driver's telemetry
+        let scRendered = false;
+        telemetryData.forEach((data) => {
+            if (scRendered) return;
+            const { telemetry } = data;
+            
+            // Safety Car Visualization
+            if (telemetry.safety_car && telemetry.safety_car.x && telemetry.safety_car.x.length > playbackIndex) {
+                const scX = telemetry.safety_car.x[playbackIndex];
+                const scY = telemetry.safety_car.y[playbackIndex];
+                const scPhase = telemetry.safety_car.phase ? telemetry.safety_car.phase[playbackIndex] : null;
+                
+                if (scX !== null && scY !== null) {
+                    traces.push({
+                        x: [scX],
+                        y: [scY],
+                        type: 'scattergl',
+                        mode: 'markers+text',
+                        name: 'Safety Car',
+                        text: ['SC'],
+                        textposition: 'top center',
+                        textfont: { color: '#ffb703', size: 12, weight: 'bold' },
+                        marker: { 
+                             color: '#ffb703', 
+                             size: 16, 
+                             line: { color: '#fb8500', width: 3 },
+                             symbol: 'circle'
+                        },
+                        hovertemplate: `<span style="font-weight:900;color:#ffb703">Safety Car</span><br>Phase: ${scPhase || 'on_track'}<extra></extra>`
+                    });
+                    scRendered = true;
+                }
+            }
+        });
     }
 
     // Overlay Circuit Data (Corners)
@@ -143,6 +179,11 @@ const TrackMap = ({ telemetryData, playbackIndex, allDrivers, year, round, sessi
 
     return (
         <div className="relative w-full h-full">
+            {/* Live Leaderboard Overlay */}
+            {telemetryData && telemetryData.length > 0 && (
+                <LiveLeaderboard telemetryData={telemetryData} playbackIndex={playbackIndex} allDrivers={allDrivers} />
+            )}
+            
             <div className="absolute top-2 right-2 z-10 flex gap-2">
                 <button 
                     onClick={() => setShowHeatmap(!showHeatmap)}

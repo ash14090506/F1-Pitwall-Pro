@@ -340,7 +340,7 @@ These are DONE. Do NOT re-implement:
 
 ---
 
-### TASK 5.2: Workspace Save/Load [ ]
+### TASK 5.2: Workspace Save/Load [x]
 **Priority**: P3  
 **Reference**: PITWALL Workspace Management  
 **Description**: Save and restore the current sidebar selection + open modules + driver selections.
@@ -483,4 +483,33 @@ f1_strategy_ai/
 │           └── ErrorBoundary.jsx
 └── data/
     └── cache/                      ← FastF1 response cache
-```
+
+## 📋 TASKS — Phase 7: Replay & Visual Enhancements (P2)
+(Ported from f1-race-replay)
+
+### TASK 7.1: Simulated Safety Car Visualization [x]
+**Priority**: P2  
+**Description**: Visualize the Safety Car during track status code 4 (SC deployed).
+- **Backend**: Update telemetry logic to simulate SC position ~500m ahead of race leader. Include 3 phases: deploying, on_track, returning.
+- **Frontend**: Update `TrackMap.jsx` to render the SC with pulsing animations and phase-specific labels.
+
+### TASK 7.2: Live Leaderboard with Driver Status [x]
+**Priority**: P2  
+**Description**: A persistent live leaderboard to show live order, tyre compounds, and retirement status.
+- **Frontend**: Create `LiveLeaderboard.jsx` hook into playback state. Show "OUT" for retired drivers.
+
+### TASK 7.3: Enhanced Playback Controls & Shortcuts [x]
+**Priority**: P2  
+**Description**: Add playback speed multipliers and keyboard shortcuts.
+- **Frontend**: Update `PlaybackControls.jsx` with speed controls (0.5x, 1x, 2x, 4x) and keyboard listeners (Space=Pause, Arrows=Skip/Speed).
+
+### TASK 7.4: Qualifying & Sprint Session Support [x]
+**Priority**: P2  
+**Description**: Support specific session types with tailored telemetry views.
+- **Backend**: Ensure endpoints handle non-race sessions properly.
+- **Frontend**: Update `WelcomeDashboard.jsx` to allow session selection and dynamically hide irrelevant modules (e.g. Pitstop Analysis).
+
+### TASK 7.5: Floating Insights Menu / Custom Workspaces [x]
+**Priority**: P3  
+**Description**: Allow users to pop out custom telemetry windows or use a floating insights menu.
+- **Frontend**: Implement custom workspace saving/loading or a floating widget to spawn analysis windows during replay.```

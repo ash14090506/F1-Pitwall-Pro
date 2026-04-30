@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Play, Pause } from 'lucide-react';
+import { Play, Pause, Rewind, FastForward } from 'lucide-react';
 
 const PlaybackControls = ({ maxIndex, playbackIndex, setPlaybackIndex }) => {
     const [isPlaying, setIsPlaying] = useState(false);
@@ -73,6 +73,28 @@ const PlaybackControls = ({ maxIndex, playbackIndex, setPlaybackIndex }) => {
                     setPlaybackIndex(newIdxR);
                     break;
                 }
+                case 'ArrowUp': {
+                    e.preventDefault();
+                    setSpeed(prev => {
+                        const speeds = [0.5, 1, 2, 4, 8, 16];
+                        const idx = speeds.indexOf(prev);
+                        const nextSpeed = idx < speeds.length - 1 ? speeds[idx + 1] : prev;
+                        if (isPlaying) workerRef.current?.postMessage({ type: 'SPEED', speed: nextSpeed });
+                        return nextSpeed;
+                    });
+                    break;
+                }
+                case 'ArrowDown': {
+                    e.preventDefault();
+                    setSpeed(prev => {
+                        const speeds = [0.5, 1, 2, 4, 8, 16];
+                        const idx = speeds.indexOf(prev);
+                        const prevSpeed = idx > 0 ? speeds[idx - 1] : prev;
+                        if (isPlaying) workerRef.current?.postMessage({ type: 'SPEED', speed: prevSpeed });
+                        return prevSpeed;
+                    });
+                    break;
+                }
                 case 'Home':
                     workerRef.current?.postMessage({ type: 'SEEK', index: 0 });
                     setPlaybackIndex(0);
@@ -98,7 +120,7 @@ const PlaybackControls = ({ maxIndex, playbackIndex, setPlaybackIndex }) => {
     }, [setPlaybackIndex]);
 
     const handleSpeedChange = useCallback((e) => {
-        const newSpeed = parseInt(e.target.value);
+        const newSpeed = parseFloat(e.target.value);
         setSpeed(newSpeed);
         // Restart the worker with new speed if currently playing
         if (isPlaying) {
@@ -109,11 +131,33 @@ const PlaybackControls = ({ maxIndex, playbackIndex, setPlaybackIndex }) => {
     return (
         <div className="flex items-center gap-4 bg-[#1b1d24] px-4 py-2 border-t border-[#2b2e36] text-xs w-full shrink-0 shadow-[0_-5px_15px_rgba(0,0,0,0.3)] z-50">
             <button
+                onClick={() => {
+                    const newIdx = Math.max(0, playbackIndex - 10);
+                    workerRef.current?.postMessage({ type: 'SEEK', index: newIdx });
+                    setPlaybackIndex(newIdx);
+                }}
+                className="hover:bg-[#2b2e36] text-gray-400 hover:text-white rounded p-1.5 transition-colors"
+                disabled={maxIndex === 0}
+            >
+                <Rewind size={14} />
+            </button>
+            <button
                 onClick={togglePlay}
                 className="bg-blue-600 hover:bg-blue-500 rounded p-1.5 text-white disabled:opacity-50 transition-colors shadow-sm"
                 disabled={maxIndex === 0}
             >
                 {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
+            </button>
+            <button
+                onClick={() => {
+                    const newIdx = Math.min(maxIndex, playbackIndex + 10);
+                    workerRef.current?.postMessage({ type: 'SEEK', index: newIdx });
+                    setPlaybackIndex(newIdx);
+                }}
+                className="hover:bg-[#2b2e36] text-gray-400 hover:text-white rounded p-1.5 transition-colors"
+                disabled={maxIndex === 0}
+            >
+                <FastForward size={14} />
             </button>
 
             <select
@@ -121,6 +165,7 @@ const PlaybackControls = ({ maxIndex, playbackIndex, setPlaybackIndex }) => {
                 value={speed}
                 onChange={handleSpeedChange}
             >
+                <option value={0.5}>0.5x Speed</option>
                 <option value={1}>1x Speed</option>
                 <option value={2}>2x Speed</option>
                 <option value={4}>4x Speed</option>

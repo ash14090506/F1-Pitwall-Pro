@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import WindowCard from './components/WindowCard';
+import FloatingWindow from './components/FloatingWindow';
 import LineChart from './components/LineChart';
 import TrackMap from './components/TrackMap';
 import PlaybackControls from './components/PlaybackControls';
@@ -56,8 +57,52 @@ function App() {
   // UI States
   const [activeMenu, setActiveMenu] = useState(null);
   const [activeModal, setActiveModal] = useState(null);
+  const [floatingWindows, setFloatingWindows] = useState([]);
+  const [focusedFloatingWindow, setFocusedFloatingWindow] = useState(null);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [shareToast, setShareToast] = useState(false);
+
+  // Auto-restore workspace on initial load
+  useEffect(() => {
+    const saved = localStorage.getItem('pitwall-workspace');
+    if (saved && !window.location.search) {
+      try {
+        const ws = JSON.parse(saved);
+        if (ws.selectedYear) setSelectedYear(ws.selectedYear);
+        if (ws.selectedRace) setSelectedRace(ws.selectedRace);
+        if (ws.selectedSession) setSelectedSession(ws.selectedSession);
+        if (ws.selectedDrivers) setSelectedDrivers(ws.selectedDrivers);
+        if (ws.activeModal) setActiveModal(ws.activeModal);
+        if (ws.floatingWindows) setFloatingWindows(ws.floatingWindows);
+      } catch (e) { console.error('Failed to parse workspace', e); }
+    }
+  }, []);
+
+  const saveWorkspace = () => {
+    const ws = {
+      selectedYear, selectedRace, selectedSession, selectedDrivers,
+      activeModal, floatingWindows
+    };
+    localStorage.setItem('pitwall-workspace', JSON.stringify(ws));
+    alert('Workspace saved successfully!');
+  };
+
+  const loadWorkspace = () => {
+    const saved = localStorage.getItem('pitwall-workspace');
+    if (saved) {
+      try {
+        const ws = JSON.parse(saved);
+        if (ws.selectedYear) setSelectedYear(ws.selectedYear);
+        if (ws.selectedRace) setSelectedRace(ws.selectedRace);
+        if (ws.selectedSession) setSelectedSession(ws.selectedSession);
+        if (ws.selectedDrivers) setSelectedDrivers(ws.selectedDrivers);
+        if (ws.activeModal) setActiveModal(ws.activeModal);
+        if (ws.floatingWindows) setFloatingWindows(ws.floatingWindows);
+      } catch (e) { alert('Failed to load workspace.'); }
+    } else {
+      alert('No saved workspace found.');
+    }
+  };
 
   // Theme: persist to localStorage, apply to <html> data-theme
   const [theme, setTheme] = useState(() => localStorage.getItem('pitwall-theme') || 'dark');
@@ -97,6 +142,16 @@ function App() {
       }
   }, []);
 
+  const handleSpawnFloating = useCallback((modalName) => {
+      const id = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+      setFloatingWindows(prev => [...prev, { id, moduleName }]);
+      setFocusedFloatingWindow(id);
+  }, []);
+
+  const closeFloatingWindow = useCallback((id) => {
+      setFloatingWindows(prev => prev.filter(w => w.id !== id));
+  }, []);
+
   const renderMenu = (name, items) => (
     <div className="relative z-[100]">
       <div 
@@ -119,220 +174,91 @@ function App() {
     </div>
   );
 
-  const renderModalContent = () => {
-      switch (activeModal) {
+  const getModuleContent = (modalName) => {
+      switch (modalName) {
           case 'Lap Time Box Plot':
-              return (
-                  <WindowCard title="Lap Time Consistency (Box Plot)" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <LapTimeBoxPlot year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />
-                  </WindowCard>
-              );
+              return { title: "Lap Time Consistency (Box Plot)", fullSpan: true, content: <LapTimeBoxPlot year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} /> };
           case 'Long Run Analysis':
-              return (
-                  <WindowCard title="FP2 Long Run Analysis & Fuel Correction" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <LongRunAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />
-                  </WindowCard>
-              );
+              return { title: "FP2 Long Run Analysis & Fuel Correction", fullSpan: true, content: <LongRunAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} /> };
           case 'Sector Comparison Chart':
-              return <SectorComparisonChart year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} onClose={() => setActiveModal(null)} />;
-        case 'Tyre Degradation':
-              return (
-                  <WindowCard title="Tyre Degradation Curves — Stint Analysis" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <TyreDegradation year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />
-                  </WindowCard>
-              );
+              return { title: "Sector Comparison Chart", fullSpan: true, content: <SectorComparisonChart year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} /> };
+          case 'Tyre Degradation':
+              return { title: "Tyre Degradation Curves — Stint Analysis", fullSpan: true, content: <TyreDegradation year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} /> };
           case 'Lap Delta Overlay':
-              return (
-                  <WindowCard title="Lap Delta — Gap vs. Distance + Track Map" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <LapDeltaOverlay year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />
-                  </WindowCard>
-              );
+              return { title: "Lap Delta — Gap vs. Distance + Track Map", fullSpan: true, content: <LapDeltaOverlay year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} /> };
           case 'Pit Strategy Gantt':
-              return (
-                  <WindowCard title="Pit Stop Strategy — Gantt Timeline" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <PitStrategyGantt year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} />
-                  </WindowCard>
-              );
+              return { title: "Pit Stop Strategy — Gantt Timeline", fullSpan: true, content: <PitStrategyGantt year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} /> };
           case 'Sector Mini-Splits':
-              return (
-                  <WindowCard title="Sector Mini-Splits — Track Map" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <SectorMiniSplits year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />
-                  </WindowCard>
-              );
+              return { title: "Sector Mini-Splits — Track Map", fullSpan: true, content: <SectorMiniSplits year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} /> };
           case 'Pedal Behavior Analysis':
-              return (
-                  <WindowCard title="Pre-Apex Pedal Behavior Mapping" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <PedalBehavior year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />
-                  </WindowCard>
-              );
+              return { title: "Pre-Apex Pedal Behavior Mapping", fullSpan: true, content: <PedalBehavior year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} /> };
           case 'Throttle Corner Analysis':
-              return (
-                  <WindowCard title="Throttle vs Detected Corners" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <ThrottleCornerAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />
-                  </WindowCard>
-              );
+              return { title: "Throttle vs Detected Corners", fullSpan: true, content: <ThrottleCornerAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} /> };
           case 'Detailed Lap Analysis':
-              // Overwriting the old Grid view with the new 3.1 Data Table, as Grid stands firmly underneath
-              return (
-                  <WindowCard title="Detailed Lap Data Matrix" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <DetailedLapData year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} />
-                  </WindowCard>
-              );
+              return { title: "Detailed Lap Data Matrix", fullSpan: true, content: <DetailedLapData year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} /> };
           case 'Lap-by-Lap Comparison':
-              return (
-                  <LapComparisonModal 
-                      year={selectedYear} 
-                      round={selectedRace} 
-                      sessionType={selectedSession}
-                      drivers={selectedDrivers} 
-                      onClose={() => setActiveModal(null)} 
-                      onApplyLaps={handleLoadSpecificLaps}
-                  />
-              );
+              return { title: "Lap-by-Lap Comparison", fullSpan: true, customWrap: true, content: <LapComparisonModal year={selectedYear} round={selectedRace} sessionType={selectedSession} drivers={selectedDrivers} onApplyLaps={handleLoadSpecificLaps} /> };
           case 'Track Analysis':
-              return (
-                  <WindowCard title="Track Analysis (Full Screen Module)" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <TrackMap telemetryData={telemetries} playbackIndex={playbackIndex} allDrivers={drivers} year={selectedYear} round={selectedRace} sessionType={selectedSession} />
-                  </WindowCard>
-              );
+              return { title: "Track Analysis (Full Screen Module)", fullSpan: true, content: <TrackMap telemetryData={telemetries} playbackIndex={playbackIndex} allDrivers={drivers} year={selectedYear} round={selectedRace} sessionType={selectedSession} /> };
           case 'Temperature Analysis':
-              return (
-                  <WindowCard title="Temperature & Weather Extrapolation" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <TemperatureAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} />
-                  </WindowCard>
-              );
+              return { title: "Temperature & Weather Extrapolation", fullSpan: true, content: <TemperatureAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} /> };
           case 'Pitstop Analysis':
-              return (
-                  <div className="h-full w-full max-w-7xl relative mx-auto shadow-2xl">
-                    <PitstopAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} onClose={() => setActiveModal(null)} />
-                  </div>
-              );
+              return { title: "Pitstop Analysis", fullSpan: true, rawRender: true, content: <PitstopAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} /> };
           case 'Accident & Flags Analysis':
-              return (
-                  <div className="h-full w-full max-w-3xl relative mx-auto shadow-2xl">
-                    <FlagsTimeline year={selectedYear} round={selectedRace} sessionType={selectedSession} onClose={() => setActiveModal(null)} />
-                  </div>
-              );
+              return { title: "Accident & Flags Analysis", fullSpan: true, rawRender: true, content: <FlagsTimeline year={selectedYear} round={selectedRace} sessionType={selectedSession} /> };
           case 'Tire Strategy Analysis':
-              return (
-                  <WindowCard title="Tire Strategy Allocation" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <TireStrategyGrid year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} />
-                  </WindowCard>
-              );
+              return { title: "Tire Strategy Allocation", fullSpan: true, content: <TireStrategyGrid year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} /> };
           case 'Traffic Analysis':
-              return (
-                  <WindowCard title="Dirty Air & Traffic Heatmap" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <TrafficHeatmap year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} />
-                  </WindowCard>
-              );
+              return { title: "Dirty Air & Traffic Heatmap", fullSpan: true, content: <TrafficHeatmap year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} /> };
           case 'Throttle/Brake Analysis':
-              return (
-                  <WindowCard title="Throttle & Brake High-Fidelity Module" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <div className="h-full w-full flex flex-col gap-3">
-                          <div className="flex-1 min-h-0">
-                              <LineChart title="Throttle" yLabel="%" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
-                          </div>
-                          <div className="flex-1 min-h-0">
-                              <LineChart title="Brake" yLabel="Pressure %" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
-                          </div>
-                      </div>
-                  </WindowCard>
-              );
+              return { title: "Throttle & Brake High-Fidelity Module", fullSpan: true, content: <div className="h-full w-full flex flex-col gap-3"><div className="flex-1 min-h-0"><LineChart title="Throttle" yLabel="%" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} /></div><div className="flex-1 min-h-0"><LineChart title="Brake" yLabel="Pressure %" maxVal={105} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} /></div></div> };
           case 'Steering/Gear Analysis':
-              return (
-                  <WindowCard title="Gear & RPM Analysis Module" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <div className="h-full w-full flex flex-col gap-3">
-                          <div className="flex-1 min-h-0">
-                              <LineChart title="nGear" dataKey="gear" yLabel="Gear" maxVal={9} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
-                          </div>
-                          <div className="flex-1 min-h-0">
-                              <LineChart title="RPM" yLabel="Revs" maxVal={13000} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
-                          </div>
-                      </div>
-                  </WindowCard>
-              );
+              return { title: "Gear & RPM Analysis Module", fullSpan: true, content: <div className="h-full w-full flex flex-col gap-3"><div className="flex-1 min-h-0"><LineChart title="nGear" dataKey="gear" yLabel="Gear" maxVal={9} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} /></div><div className="flex-1 min-h-0"><LineChart title="RPM" yLabel="Revs" maxVal={13000} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} /></div></div> };
           case 'Driver Run Position':
-              return (
-                  <WindowCard title="Grid Progression & Run Layout" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <DriverPositionChart year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} />
-                  </WindowCard>
-              );
+              return { title: "Grid Progression & Run Layout", fullSpan: true, content: <DriverPositionChart year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} /> };
           case 'DRS & Acceleration':
-              return (
-                  <WindowCard title="DRS & Acceleration Analysis" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <div className="h-full w-full flex flex-col gap-3">
-                          <div className="flex-1 min-h-0">
-                              <LineChart title="DRS Status" dataKey="drs" yLabel="Active" maxVal={1.2} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} />
-                          </div>
-                          <div className="flex-1 min-h-0">
-                              <AccelerationChart telemetryData={telemetries} allDrivers={drivers} />
-                          </div>
-                      </div>
-                  </WindowCard>
-              );
+              return { title: "DRS & Acceleration Analysis", fullSpan: true, content: <div className="h-full w-full flex flex-col gap-3"><div className="flex-1 min-h-0"><LineChart title="DRS Status" dataKey="drs" yLabel="Active" maxVal={1.2} telemetryData={telemetries} allDrivers={drivers} playbackIndex={playbackIndex} fixedXMax={maxDistance} hoverDistance={globalHoverDistance} onHoverChange={setGlobalHoverDistance} /></div><div className="flex-1 min-h-0"><AccelerationChart telemetryData={telemetries} allDrivers={drivers} /></div></div> };
           case 'Delta Analysis':
-              return (
-                  <WindowCard title="Comparative Delta Analysis" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <DeltaAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} selectedDrivers={selectedDrivers} />
-                  </WindowCard>
-              );
+              return { title: "Comparative Delta Analysis", fullSpan: true, content: <DeltaAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} selectedDrivers={selectedDrivers} /> };
           case 'Straight Line Speed':
-              return (
-                  <WindowCard title="Straight Line Speed Analysis" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <StraightLineSpeed year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} />
-                  </WindowCard>
-              );
+              return { title: "Straight Line Speed Analysis", fullSpan: true, content: <StraightLineSpeed year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} /> };
           case 'Brake & Accel Performance':
-              return (
-                  <WindowCard title="Brake & Acceleration Performance" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <BrakeAccelPerformance year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />
-                  </WindowCard>
-              );
+              return { title: "Brake & Acceleration Performance", fullSpan: true, content: <BrakeAccelPerformance year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} /> };
           case 'Corner Classification':
-              return (
-                  <WindowCard title="Corner Performance Classification" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <CornerClassification year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} />
-                  </WindowCard>
-              );
+              return { title: "Corner Performance Classification", fullSpan: true, content: <CornerClassification year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} /> };
           case 'Ideal Lap Ranking':
-              return (
-                  <WindowCard title="Ideal Lap & Sector Comparison" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <IdealLapRanking year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} />
-                  </WindowCard>
-              );
+              return { title: "Ideal Lap & Sector Comparison", fullSpan: true, content: <IdealLapRanking year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} /> };
           case 'AI Prediction Models':
-              return (
-                  <WindowCard title="AI Prediction Models" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <AiPredictions year={selectedYear} round={selectedRace} />
-                  </WindowCard>
-              );
+              return { title: "AI Prediction Models", fullSpan: true, content: <AiPredictions year={selectedYear} round={selectedRace} /> };
           case 'Historical Track Map':
-              return (
-                  <WindowCard title="Historical Track Map & Flags" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <HistoricalTrackMap year={selectedYear} round={selectedRace} />
-                  </WindowCard>
-              );
+              return { title: "Historical Track Map & Flags", fullSpan: true, content: <HistoricalTrackMap year={selectedYear} round={selectedRace} /> };
           case 'Season Start Reaction':
-              return (
-                  <WindowCard title="Season Start Reaction" fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <SeasonStartReaction year={selectedYear} />
-                  </WindowCard>
-              );
+              return { title: "Season Start Reaction", fullSpan: true, content: <SeasonStartReaction year={selectedYear} /> };
           default:
-              return (
-                  <WindowCard title={activeModal} fullSpan={true} onClose={() => setActiveModal(null)}>
-                      <div className="flex flex-col items-center justify-center h-full w-full bg-[#0b0d10] text-[#64748b]">
-                          <div className="w-16 h-16 mb-4 flex items-center justify-center rounded-full bg-[#1b1d24] border border-[#2b2e36]">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                          </div>
-                          <div className="text-lg font-bold text-white mb-1">Under Construction</div>
-                          <div className="text-sm">
-                              Module <strong className="text-red-400">{activeModal}</strong> is planned for a future update.
-                          </div>
-                      </div>
-                  </WindowCard>
-              );
+              return { title: modalName, fullSpan: true, content: <div className="flex flex-col items-center justify-center h-full w-full bg-[#0b0d10] text-[#64748b]"><div className="w-16 h-16 mb-4 flex items-center justify-center rounded-full bg-[#1b1d24] border border-[#2b2e36]"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></div><div className="text-lg font-bold text-white mb-1">Under Construction</div><div className="text-sm">Module <strong className="text-red-400">{modalName}</strong> is planned for a future update.</div></div> };
       }
+  };
+
+  const renderModalContent = () => {
+      if (!activeModal) return null;
+      const mod = getModuleContent(activeModal);
+      if (mod.customWrap) {
+          // Pass onClose into LapComparisonModal clone since it's a special component
+          return React.cloneElement(mod.content, { onClose: () => setActiveModal(null) });
+      }
+      if (mod.rawRender) {
+          return (
+              <div className="h-full w-full max-w-7xl relative mx-auto shadow-2xl bg-[#0b0d10] rounded overflow-hidden">
+                  <button onClick={() => setActiveModal(null)} className="absolute top-2 right-2 z-50 text-gray-400 hover:text-white p-1 bg-black/50 rounded-full"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+                  {mod.content}
+              </div>
+          );
+      }
+      return (
+          <WindowCard title={mod.title} fullSpan={mod.fullSpan} onClose={() => setActiveModal(null)}>
+              {mod.content}
+          </WindowCard>
+      );
   };
 
   useEffect(() => {
@@ -429,9 +355,10 @@ function App() {
     setTelemetries([]);  // clear previous data immediately for clean slate
     try {
       // Stream each driver in parallel — each arrives independently
-      await Promise.all(selectedDrivers.map((drv) => {
+      await Promise.all(selectedDrivers.map(async (drv) => {
         const url = `${API_BASE}/telemetry/fastest?year=${selectedYear}&round=${selectedRace}&session_type=${selectedSession}&driver=${drv}`;
-        return readNDJSONStream(url, (payload) => {
+        try {
+          await readNDJSONStream(url, (payload) => {
           setTelemetries(prev => {
             // Replace existing entry for this driver if present (dedup), otherwise append
             const exists = prev.findIndex(d => d.driver === payload.driver);
@@ -450,6 +377,10 @@ function App() {
             setPlaybackIndex(dist.length - 1);
           }
         });
+        } catch (err) {
+          console.error(`Error loading telemetry for ${drv}:`, err);
+          setError(prev => prev ? `${prev} | ${drv}: ${err.message}` : `${drv}: ${err.message}`);
+        }
       }));
     } catch (err) {
       if (err.name !== 'AbortError') {
@@ -467,9 +398,10 @@ function App() {
     setError(null);
     setTelemetries([]);
     try {
-      await Promise.all(Object.entries(lapSelections).map(([drv, lapNum]) => {
+      await Promise.all(Object.entries(lapSelections).map(async ([drv, lapNum]) => {
         const url = `${API_BASE}/telemetry/lap?year=${selectedYear}&round=${selectedRace}&session_type=${selectedSession}&driver=${drv}&lap_number=${lapNum}`;
-        return readNDJSONStream(url, (payload) => {
+        try {
+          await readNDJSONStream(url, (payload) => {
           setTelemetries(prev => {
             const exists = prev.findIndex(d => d.driver === payload.driver);
             if (exists >= 0) {
@@ -486,6 +418,10 @@ function App() {
             setPlaybackIndex(dist.length - 1);
           }
         });
+        } catch (err) {
+          console.error(`Error loading lap ${lapNum} for ${drv}:`, err);
+          setError(prev => prev ? `${prev} | ${drv} (L${lapNum}): ${err.message}` : `${drv} (L${lapNum}): ${err.message}`);
+        }
       }));
       setActiveModal(null);
     } catch (err) {
@@ -515,6 +451,9 @@ function App() {
       <div className="h-6 min-h-[24px] flex items-center bg-[#1b1d24] border-b border-[#2b2e36] text-[11px] text-gray-300 px-2 space-x-4 relative z-50">
         <span className="font-bold text-white tracking-widest mr-4">F1 PITWALL PRO</span>
         {renderMenu('File', [
+          { label: 'Save Workspace', action: saveWorkspace },
+          { label: 'Load Workspace', action: loadWorkspace },
+          'divider',
           { label: 'Export Layout', action: () => alert('Exporting dashboard layout...') },
           'divider',
           { label: 'Reload Framework', action: () => window.location.reload() }
@@ -627,7 +566,7 @@ function App() {
 
       {/* Main Workspace Layout */}
       <div className="flex flex-1 overflow-hidden relative">
-        {sidebarVisible && <Sidebar activeModal={activeModal} onMenuSelect={handleMenuSelect} />}
+        {sidebarVisible && <Sidebar activeModal={activeModal} onMenuSelect={handleMenuSelect} onSpawnFloating={handleSpawnFloating} />}
 
         {/* Modal Overlay */}
         {activeModal && activeModal !== 'Detailed Lap Analysis' && (
@@ -637,6 +576,24 @@ function App() {
                </div>
             </div>
         )}
+
+        {/* Floating Windows */}
+        {floatingWindows.map(fw => {
+            const mod = getModuleContent(fw.moduleName);
+            // Default props if LapComparison or similar
+            if (mod.customWrap) {
+                return (
+                    <FloatingWindow key={fw.id} id={fw.id} title={mod.title} onClose={closeFloatingWindow} isFocused={focusedFloatingWindow === fw.id} onFocus={setFocusedFloatingWindow}>
+                        {React.cloneElement(mod.content, { onClose: () => closeFloatingWindow(fw.id) })}
+                    </FloatingWindow>
+                );
+            }
+            return (
+                <FloatingWindow key={fw.id} id={fw.id} title={mod.title} onClose={closeFloatingWindow} isFocused={focusedFloatingWindow === fw.id} onFocus={setFocusedFloatingWindow}>
+                    {mod.content}
+                </FloatingWindow>
+            );
+        })}
         
         <div className="flex-1 overflow-auto bg-[#0b0d10] relative">
           {error && (

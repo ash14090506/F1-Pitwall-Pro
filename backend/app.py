@@ -76,7 +76,8 @@ def get_drivers(year: int, round: int, session_type: str, background_tasks: Back
                 "abbreviation": driver["Abbreviation"],
                 "full_name": f"{driver['FirstName']} {driver['LastName']}",
                 "team_name": driver["TeamName"],
-                "team_color": driver["TeamColor"]
+                "team_color": driver["TeamColor"],
+                "status": driver.get("Status", "Unknown")
             })
             
         # Trigger heavy telemetry parsing in the background so it's ready when user clicks play
@@ -178,7 +179,7 @@ def get_parsed_session(year: int, round: int, session_type: str):
             
         return loaded_sessions[key]
 
-def process_telemetry_data(telemetry):
+def process_telemetry_data(telemetry, session=None):
     # Calculate Longitudinal and Lateral Acceleration
     try:
         # Time and Speed delta for Lon_Accel
@@ -208,9 +209,51 @@ def process_telemetry_data(telemetry):
         telemetry['Lon_Accel'] = 0.0
         telemetry['Lat_Accel'] = 0.0
         
+    # Safety Car Simulation
+    telemetry['SC_X'] = None
+    telemetry['SC_Y'] = None
+    telemetry['SC_Phase'] = None
+    
+    if session is not None and hasattr(session, 'track_status'):
+        try:
+            ts = session.track_status
+            if ts is not None and not ts.empty:
+                ts_times = ts['Time'].dt.total_seconds().values
+                statuses = ts['Status'].astype(str).values
+                
+                tel_times = telemetry['Time_s'].values
+                
+                idx = np.searchsorted(ts_times, tel_times, side='right') - 1
+                current_status = np.where(idx >= 0, statuses[idx], '1')
+                
+                sc_mask = (current_status == '4')
+                
+                if sc_mask.any():
+                    track_length = telemetry['Distance'].max()
+                    if track_length > 0:
+                        sc_dist = (telemetry['Distance'] + 500) % track_length
+                        
+                        sorted_idx = np.argsort(telemetry['Distance'].values)
+                        dist_sorted = telemetry['Distance'].values[sorted_idx]
+                        x_sorted = telemetry['X'].values[sorted_idx]
+                        y_sorted = telemetry['Y'].values[sorted_idx]
+                        
+                        sc_x = np.interp(sc_dist, dist_sorted, x_sorted)
+                        sc_y = np.interp(sc_dist, dist_sorted, y_sorted)
+                        
+                        telemetry['SC_X'] = np.where(sc_mask, sc_x, None)
+                        telemetry['SC_Y'] = np.where(sc_mask, sc_y, None)
+                        
+                        # Calculate phases
+                        phases = np.array([None] * len(telemetry))
+                        phases[sc_mask] = 'on_track'
+                        telemetry['SC_Phase'] = phases
+        except Exception as e:
+            logger.error(f"Failed to process safety car data: {e}")
+            
     return telemetry
 
-def _build_telemetry_payload(driver: str, telemetry, lap_time, lap_number=None) -> dict:
+def _build_telemetry_payload(driver: str, telemetry, lap_time, lap_number=None, compound=None, tyre_life=None) -> dict:
     """Serialize a single driver's processed telemetry into a dict ready for JSON encoding."""
     telemetry = telemetry.replace([np.inf, -np.inf, np.nan], None)
     data = {
@@ -225,11 +268,20 @@ def _build_telemetry_payload(driver: str, telemetry, lap_time, lap_number=None) 
         "drs": telemetry["DRS"].tolist(),
         "lon_accel": telemetry["Lon_Accel"].tolist(),
         "lat_accel": telemetry["Lat_Accel"].tolist(),
-        "lap_time": str(lap_time)
+        "lap_time": str(lap_time),
+        "safety_car": {
+            "x": telemetry["SC_X"].tolist() if "SC_X" in telemetry else [],
+            "y": telemetry["SC_Y"].tolist() if "SC_Y" in telemetry else [],
+            "phase": telemetry["SC_Phase"].tolist() if "SC_Phase" in telemetry else []
+        }
     }
     payload = {"driver": driver, "telemetry": data}
     if lap_number is not None:
         payload["lap_number"] = lap_number
+    if compound is not None:
+        payload["compound"] = compound
+    if tyre_life is not None:
+        payload["tyre_life"] = tyre_life
     return payload
 
 
@@ -248,8 +300,18 @@ def get_fastest_lap_telemetry(year: int, round: int, session_type: str, driver: 
                 yield json.dumps({"error": "No valid fastest lap time found."}) + "\n"
                 return
             tel = fastest_lap.get_telemetry()
-            tel = process_telemetry_data(tel)
-            payload = _build_telemetry_payload(driver, tel, fastest_lap['LapTime'])
+            tel = process_telemetry_data(tel, session=session)
+            
+            compound = fastest_lap.get('Compound', 'UNKNOWN')
+            tyre_life = fastest_lap.get('TyreLife', 0)
+            
+            payload = _build_telemetry_payload(
+                driver, 
+                tel, 
+                fastest_lap['LapTime'],
+                compound=compound,
+                tyre_life=tyre_life
+            )
             yield json.dumps(payload) + "\n"
             yield json.dumps({"done": True}) + "\n"
         except Exception as e:
@@ -273,8 +335,19 @@ def get_lap_telemetry(year: int, round: int, session_type: str, driver: str, lap
                 return
             lap = lap_df.iloc[0]
             tel = lap.get_telemetry()
-            tel = process_telemetry_data(tel)
-            payload = _build_telemetry_payload(driver, tel, lap['LapTime'], lap_number=lap_number)
+            tel = process_telemetry_data(tel, session=session)
+            
+            compound = lap.get('Compound', 'UNKNOWN')
+            tyre_life = lap.get('TyreLife', 0)
+            
+            payload = _build_telemetry_payload(
+                driver, 
+                tel, 
+                lap['LapTime'], 
+                lap_number=lap_number,
+                compound=compound,
+                tyre_life=tyre_life
+            )
             yield json.dumps(payload) + "\n"
             yield json.dumps({"done": True}) + "\n"
         except Exception as e:
@@ -503,6 +576,9 @@ def get_circuit_data(year: int, round: int, session_type: str):
 def get_positions_data(year: int, round: int, session_type: str):
     """Retrieve lap-by-lap track positions for positional chart."""
     try:
+        if session_type not in ['R', 'S']:
+            raise HTTPException(status_code=400, detail=f"Positional tracking is not available for {session_type} sessions.")
+            
         session = get_parsed_session(year, round, session_type)
         if session.laps is None or session.laps.empty:
             raise HTTPException(status_code=404, detail="Laps data not available for positions.")
