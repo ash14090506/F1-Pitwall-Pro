@@ -18,6 +18,61 @@ const RadioPlayer = ({ clips = [], playbackIndex, telemetryData = [], isEnabled,
     const [isAudioPlaying, setIsAudioPlaying] = useState(false);
     const [clipIndex, setClipIndex] = useState(null); // index into clips[]
     const [volume, setVolume] = useState(0.85);
+    const [transcript, setTranscript] = useState(null);
+    const [transcriptProvider, setTranscriptProvider] = useState(null);
+    const [isTranscribing, setIsTranscribing] = useState(false);
+
+    // ── localStorage helpers ──────────────────────────────────────────────────
+    const LS_KEY = (url) => `pitwall_transcript:${url}`;
+
+    const readCachedTranscript = useCallback((url) => {
+        try {
+            const raw = localStorage.getItem(LS_KEY(url));
+            if (!raw) return null;
+            return JSON.parse(raw); // { transcript, provider }
+        } catch {
+            return null;
+        }
+    }, []);
+
+    const writeCachedTranscript = useCallback((url, transcript, provider) => {
+        try {
+            localStorage.setItem(LS_KEY(url), JSON.stringify({ transcript, provider }));
+        } catch {
+            // Quota exceeded — silently skip. Backend disk cache still works.
+        }
+    }, []);
+
+    // ── Shared transcript fetcher: LS hit = instant, miss = backend → persist ─
+    const fetchTranscript = useCallback((url) => {
+        // 1. localStorage hit — zero latency
+        const cached = readCachedTranscript(url);
+        if (cached) {
+            setTranscript(cached.transcript);
+            setTranscriptProvider('cache');
+            setIsTranscribing(false);
+            return;
+        }
+
+        // 2. Cache miss — ask backend (which has its own disk cache as L2)
+        setIsTranscribing(true);
+        fetch('http://127.0.0.1:8001/api/team_radio/transcribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url }),
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.transcript) {
+                    setTranscript(data.transcript);
+                    setTranscriptProvider(data.provider);
+                    // Persist to localStorage so the NEXT play is instant
+                    writeCachedTranscript(url, data.transcript, data.provider);
+                }
+            })
+            .catch(err => console.error('[RadioPlayer] Transcription fetch failed:', err))
+            .finally(() => setIsTranscribing(false));
+    }, [readCachedTranscript, writeCachedTranscript]);
 
     // Derive current session time in seconds from playback index + first driver's time array
     const getCurrentSessionTime = useCallback(() => {
@@ -79,11 +134,17 @@ const RadioPlayer = ({ clips = [], playbackIndex, telemetryData = [], isEnabled,
         setCurrentClip(clip);
         setClipIndex(index);
 
+        // Reset transcript
+        setTranscript(null);
+        setTranscriptProvider(null);
+
         audio.play().then(() => setIsAudioPlaying(true)).catch(err => {
-            // Autoplay may be blocked by the browser on first interaction — fail silently
             console.warn('[RadioPlayer] Autoplay blocked or failed:', err.message);
             setIsAudioPlaying(false);
         });
+
+        // Fetch transcription — localStorage first, backend as fallback
+        fetchTranscript(clip.url);
 
         audio.onended = () => {
             setIsAudioPlaying(false);
@@ -120,9 +181,18 @@ const RadioPlayer = ({ clips = [], playbackIndex, telemetryData = [], isEnabled,
         lastPlayedUrlRef.current = clip.url;
         setCurrentClip(clip);
         setClipIndex(targetIndex);
+        
+        // Reset transcript
+        setTranscript(null);
+        setTranscriptProvider(null);
+        
         audio.play().then(() => setIsAudioPlaying(true)).catch(() => setIsAudioPlaying(false));
         audio.onended = () => setIsAudioPlaying(false);
-    }, [clips, volume]);
+        
+        // Fetch transcription — localStorage first, backend as fallback
+        fetchTranscript(clip.url);
+        
+    }, [clips, volume, fetchTranscript]);
 
     if (!clips.length) return null;
 
@@ -218,6 +288,33 @@ const RadioPlayer = ({ clips = [], playbackIndex, telemetryData = [], isEnabled,
                 className="w-14 accent-blue-400 h-1 cursor-pointer"
                 title={`Volume: ${Math.round(volume * 100)}%`}
             />
+
+            {/* Transcript Display */}
+            {currentClip && (
+                <div className="ml-2 flex flex-col justify-center max-w-[300px]">
+                    <div className="flex items-center gap-1 mb-0.5">
+                        <span className="text-[9px] text-gray-500 font-bold tracking-wider uppercase">Transcript</span>
+                        {transcriptProvider && transcriptProvider !== 'none' && (
+                            <span className="text-[8px] px-1 py-0.5 rounded bg-gray-800 text-gray-400">
+                                {transcriptProvider === 'groq' ? '⚡ Groq' : transcriptProvider === 'cache' ? '⚡ Cached' : '🤖 AssemblyAI'}
+                            </span>
+                        )}
+                    </div>
+                    {isTranscribing ? (
+                        <div className="flex gap-1 items-center h-4">
+                            <span className="w-1 h-1 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <span className="w-1 h-1 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <span className="w-1 h-1 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
+                    ) : transcript ? (
+                        <p className="text-xs text-gray-200 leading-tight italic line-clamp-2" title={transcript}>
+                            "{transcript}"
+                        </p>
+                    ) : (
+                        <p className="text-xs text-gray-500 italic">No transcript available</p>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

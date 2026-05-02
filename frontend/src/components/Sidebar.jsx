@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronRight, ChevronDown, Activity, Settings, Zap, Map, FileSearch, Target, Gauge, Clock, Radio, ExternalLink } from 'lucide-react';
+import { ChevronRight, ChevronDown, Activity, Settings, Zap, Map, FileSearch, Target, Gauge, Clock, Radio, ExternalLink, Bot } from 'lucide-react';
 
 const Sidebar = ({ activeModal, onMenuSelect, onSpawnFloating }) => {
     const [expanded, setExpanded] = useState({ 
@@ -48,6 +48,25 @@ const Sidebar = ({ activeModal, onMenuSelect, onSpawnFloating }) => {
             </div>
 
             <div className="mt-2 text-sm text-gray-200">
+                {/* ★ AI RACE STRATEGIST — Flagship Feature */}
+                <div
+                    className={`flex items-center gap-2.5 px-3 py-2.5 cursor-pointer mx-2 my-2 rounded-lg border transition-all ${
+                        isActive('AI Race Strategist')
+                            ? 'bg-gradient-to-r from-purple-900/60 to-blue-900/40 border-purple-500/60 shadow-[0_0_16px_rgba(139,92,246,0.25)]'
+                            : 'bg-gradient-to-r from-purple-900/20 to-blue-900/10 border-purple-700/30 hover:border-purple-500/50 hover:from-purple-900/40 hover:to-blue-900/20'
+                    }`}
+                    onClick={() => handleSelect('AI Race Strategist')}
+                >
+                    <div className="w-7 h-7 rounded-md bg-gradient-to-br from-purple-600 to-blue-700 flex items-center justify-center shadow-md flex-shrink-0">
+                        <Bot size={14} className="text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-bold text-white truncate">AI Race Strategist</p>
+                        <p className="text-[9px] text-purple-400 font-medium truncate">Ask anything · Groq LLaMA 3.3</p>
+                    </div>
+                    <Zap size={11} className="text-yellow-400 flex-shrink-0" />
+                </div>
+
                 {/* 1. Historical Analysis */}
                 <div>
                     <div className="flex items-center px-2 py-1.5 cursor-pointer hover:bg-[#2b2e36]" onClick={() => toggle('sec1')}>

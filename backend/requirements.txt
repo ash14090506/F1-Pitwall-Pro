@@ -6,3 +6,6 @@ numpy
 pydantic
 scikit-learn
 requests
+groq
+assemblyai
+python-dotenv

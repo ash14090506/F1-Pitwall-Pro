@@ -1,6 +1,10 @@
 import os
 import json
 import logging
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -10,6 +14,10 @@ import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, r2_score
+import tempfile
+import groq
+import assemblyai as aai
+from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -30,6 +38,24 @@ CACHE_DIR = os.getenv("FASTF1_CACHE", os.path.abspath(os.path.join(os.path.dirna
 os.makedirs(CACHE_DIR, exist_ok=True)
 fastf1.Cache.enable_cache(CACHE_DIR)
 logger.info(f"FastF1 Cache enabled at: {CACHE_DIR}")
+
+# Setup Transcript Cache
+TRANSCRIPTS_CACHE_FILE = os.path.join(CACHE_DIR, "transcripts.json")
+
+def load_transcripts():
+    if os.path.exists(TRANSCRIPTS_CACHE_FILE):
+        try:
+            with open(TRANSCRIPTS_CACHE_FILE, 'r') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+def save_transcripts(cache_dict):
+    with open(TRANSCRIPTS_CACHE_FILE, 'w') as f:
+        json.dump(cache_dict, f)
+
+transcripts_cache = load_transcripts()
 
 @app.get("/")
 def root():
@@ -1944,6 +1970,296 @@ def season_start_reaction(year: int):
     except Exception as e:
         logger.error(f"Error in season_start_reaction: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+class TranscribeRequest(BaseModel):
+    url: str
+
+@app.post("/api/team_radio/transcribe")
+def transcribe_radio(request: TranscribeRequest):
+    url = request.url
+    if url in transcripts_cache:
+        return {"transcript": transcripts_cache[url], "provider": "cache"}
+        
+    groq_api_key = os.getenv("GROQ_API_KEY")
+    aai.settings.api_key = os.getenv("ASSEMBLYAI_API_KEY")
+    
+    # Download audio to temp file
+    try:
+        audio_res = requests.get(url, stream=True, timeout=10)
+        audio_res.raise_for_status()
+        
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp_file:
+            for chunk in audio_res.iter_content(chunk_size=8192):
+                tmp_file.write(chunk)
+            tmp_path = tmp_file.name
+    except Exception as e:
+        logger.error(f"Failed to download audio for transcription: {e}")
+        raise HTTPException(status_code=400, detail="Failed to download audio")
+        
+    transcript = None
+    provider_used = "none"
+    
+    # Try Groq first
+    if groq_api_key:
+        try:
+            client = groq.Groq(api_key=groq_api_key)
+            with open(tmp_path, "rb") as file:
+                transcription = client.audio.transcriptions.create(
+                  file=(tmp_path, file.read()),
+                  model="whisper-large-v3-turbo",
+                  response_format="json",
+                  language="en", 
+                  temperature=0.0
+                )
+            transcript = transcription.text
+            provider_used = "groq"
+        except Exception as e:
+            logger.warning(f"Groq transcription failed: {e}")
+    else:
+        logger.warning("GROQ_API_KEY not set. Skipping Groq.")
+            
+    # Fallback to AssemblyAI
+    if not transcript and aai.settings.api_key:
+        try:
+            transcriber = aai.Transcriber()
+            aai_transcript = transcriber.transcribe(tmp_path)
+            if aai_transcript.error:
+                logger.warning(f"AssemblyAI error: {aai_transcript.error}")
+            else:
+                transcript = aai_transcript.text
+                provider_used = "assemblyai"
+        except Exception as e:
+            logger.warning(f"AssemblyAI transcription failed: {e}")
+    elif not transcript and not aai.settings.api_key:
+        logger.warning("ASSEMBLYAI_API_KEY not set. No fallback available.")
+        
+    os.remove(tmp_path)
+    
+    if transcript:
+        transcripts_cache[url] = transcript
+        save_transcripts(transcripts_cache)
+        return {"transcript": transcript, "provider": provider_used}
+    else:
+        # Default placeholder if both fail or keys missing
+        return {"transcript": "[Radio transcription unavailable or API keys missing]", "provider": "none"}
+
+
+# ============================================================
+# AI RACE STRATEGIST — Groq LLaMA 3.3 70B  (SSE streaming)
+# ============================================================
+
+class StrategistMessage(BaseModel):
+    role: str
+    content: str
+
+class StrategistRequest(BaseModel):
+    question: str
+    year: int
+    round: int
+    session_type: str
+    drivers: list[str] = []
+    history: list[StrategistMessage] = []
+
+
+def _build_session_context(year: int, round: int, session_type: str, drivers: list[str]) -> str:
+    """Build a compact, information-dense text summary of the session to inject into the LLM prompt."""
+    lines = []
+    cache_key = f"{year}_{round}_{session_type}"
+
+    # Try RAM cache first, then load with laps only (no full telemetry streaming needed)
+    session = loaded_sessions.get(cache_key)
+    if session is None:
+        try:
+            session = fastf1.get_session(year, round, session_type)
+            session.load(telemetry=False, laps=True, weather=True)
+        except Exception as e:
+            return f"[Session data unavailable: {e}]"
+
+    # --- Event info ---
+    try:
+        event_name = session.event.get('EventName', 'Unknown Event')
+        location = session.event.get('Location', '')
+        lines.append(f"=== {year} {event_name} ({location}) — {session_type} Session ===")
+    except Exception:
+        lines.append(f"=== {year} Round {round} — {session_type} ===")
+
+    if session.laps is None or session.laps.empty:
+        return '\n'.join(lines) + '\n[Lap data not available for this session]'
+
+    all_drivers_in_session = session.laps['Driver'].unique().tolist()
+    target_drivers = drivers if drivers else all_drivers_in_session[:10]
+
+    # --- Fastest laps per driver ---
+    lines.append("\n--- Fastest Laps (all drivers) ---")
+    fastest_rows = []
+    for drv in all_drivers_in_session:
+        drv_laps = session.laps.pick_driver(drv)
+        if drv_laps.empty:
+            continue
+        try:
+            fl = drv_laps.pick_fastest()
+            lt = fl['LapTime']
+            if pd.isnull(lt):
+                continue
+            total_s = lt.total_seconds()
+            m, s = divmod(total_s, 60)
+            fastest_rows.append((drv, total_s, f"{int(m)}:{s:06.3f}", str(fl.get('Compound', '?'))))
+        except Exception:
+            pass
+    fastest_rows.sort(key=lambda x: x[1])
+    for rank, (drv, _, fmt_time, compound) in enumerate(fastest_rows, 1):
+        lines.append(f"  P{rank}. {drv}: {fmt_time} on {compound}")
+
+    # --- Pit stops ---
+    lines.append("\n--- Pit Stops ---")
+    try:
+        pit_laps = session.laps[pd.notnull(session.laps['PitOutTime'])]
+        for _, lap in pit_laps.iterrows():
+            drv = str(lap.get('Driver', '?'))
+            lap_num = int(lap.get('LapNumber', 0)) - 1
+            compound = str(lap.get('Compound', '?'))
+            in_lap_data = session.laps[(session.laps['Driver'] == drv) & (session.laps['LapNumber'] == lap.get('LapNumber', 1) - 1)]
+            loss = 0.0
+            if not in_lap_data.empty and pd.notnull(in_lap_data.iloc[0].get('PitInTime')):
+                loss = (lap['PitOutTime'] - in_lap_data.iloc[0]['PitInTime']).total_seconds()
+            lines.append(f"  {drv} pitted at end of lap {lap_num} → new tyre: {compound} (pit loss: {loss:.1f}s)")
+    except Exception as e:
+        lines.append(f"  [Pit data error: {e}]")
+
+    # --- Tyre stints (for target drivers) ---
+    lines.append("\n--- Tyre Stints (selected drivers) ---")
+    for drv in target_drivers:
+        try:
+            drv_laps = session.laps.pick_driver(drv)
+            if drv_laps.empty:
+                continue
+            stints = drv_laps.dropna(subset=['Stint']).groupby('Stint')
+            stint_str_parts = []
+            for stint_num, stint_df in stints:
+                compound = str(stint_df['Compound'].iloc[0])
+                start = int(stint_df['LapNumber'].min())
+                end = int(stint_df['LapNumber'].max())
+                stint_str_parts.append(f"{compound} L{start}-{end}")
+            if stint_str_parts:
+                lines.append(f"  {drv}: " + " → ".join(stint_str_parts))
+        except Exception:
+            pass
+
+    # --- Lap-by-lap for target drivers (best 20 laps each) ---
+    lines.append("\n--- Lap Times (selected drivers, up to 20 laps) ---")
+    for drv in target_drivers:
+        try:
+            drv_laps = session.laps.pick_driver(drv).dropna(subset=['LapTime'])
+            if drv_laps.empty:
+                continue
+            lap_entries = []
+            for _, lap in drv_laps.iterrows():
+                lt = lap['LapTime']
+                if pd.isnull(lt):
+                    continue
+                total_s = lt.total_seconds()
+                m, s = divmod(total_s, 60)
+                compound = str(lap.get('Compound', '?'))[:1]  # S/M/H/I/W
+                lap_entries.append(f"L{int(lap['LapNumber'])}:{int(m)}:{s:06.3f}({compound})")
+            lines.append(f"  {drv}: " + " ".join(lap_entries[:20]))
+        except Exception:
+            pass
+
+    # --- Race control messages ---
+    lines.append("\n--- Race Control & Flags ---")
+    try:
+        rcm = session.race_control_messages
+        if rcm is not None and not rcm.empty:
+            for _, msg in rcm.head(30).iterrows():
+                flag = str(msg.get('Flag', ''))
+                message = str(msg.get('Message', ''))
+                if flag or message:
+                    lines.append(f"  [{flag}] {message}")
+    except Exception:
+        lines.append("  [Race control data unavailable]")
+
+    # --- Weather summary ---
+    lines.append("\n--- Weather ---")
+    try:
+        w = session.weather_data
+        if w is not None and not w.empty:
+            lines.append(f"  Air temp: {w['AirTemp'].mean():.1f}°C avg (range {w['AirTemp'].min():.1f}–{w['AirTemp'].max():.1f}°C)")
+            lines.append(f"  Track temp: {w['TrackTemp'].mean():.1f}°C avg (range {w['TrackTemp'].min():.1f}–{w['TrackTemp'].max():.1f}°C)")
+            lines.append(f"  Humidity: {w['Humidity'].mean():.1f}% avg")
+            rain = bool(w['Rainfall'].any())
+            lines.append(f"  Rainfall: {'Yes' if rain else 'No'}")
+    except Exception:
+        lines.append("  [Weather data unavailable]")
+
+    return '\n'.join(lines)
+
+
+@app.post("/api/strategist/ask")
+def strategist_ask(request: StrategistRequest):
+    """Stream an LLM answer (SSE) to a natural-language question about an F1 session."""
+    groq_api_key = os.getenv("GROQ_API_KEY")
+    if not groq_api_key:
+        raise HTTPException(status_code=500, detail="GROQ_API_KEY not configured")
+
+    def event_stream():
+        try:
+            # Build session context (may take a moment if session isn't in RAM)
+            context = _build_session_context(
+                request.year, request.round, request.session_type, request.drivers
+            )
+
+            system_prompt = (
+                "You are an elite F1 race strategist and telemetry analyst with deep expertise in "
+                "Formula 1 strategy, tyre management, race engineering, and aerodynamics.\n\n"
+                "You have been given the following REAL race session data extracted from official "
+                "F1 timing systems. Use this data to give precise, expert-level answers.\n\n"
+                "When referencing specific laps, times, or strategies, cite the actual numbers from "
+                "the data. Be analytical, insightful, and concise — like a real race engineer debriefing.\n\n"
+                "=== INJECTED SESSION DATA ===\n"
+                + context
+            )
+
+            messages = [
+                {"role": "system", "content": system_prompt},
+            ]
+            # Inject conversation history
+            for h in request.history:
+                messages.append({"role": h.role, "content": h.content})
+            messages.append({"role": "user", "content": request.question})
+
+            client = groq.Groq(api_key=groq_api_key)
+            stream = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=messages,
+                stream=True,
+                temperature=0.4,
+                max_tokens=1024,
+            )
+
+            # Send provider metadata first
+            yield f"data: {json.dumps({'provider': 'llama-3.3-70b-versatile'})}\n\n"
+
+            for chunk in stream:
+                delta = chunk.choices[0].delta
+                if delta.content:
+                    yield f"data: {json.dumps({'token': delta.content})}\n\n"
+
+            yield "data: [DONE]\n\n"
+
+        except Exception as e:
+            logger.error(f"[strategist] Streaming error: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        }
+    )
+
 
 if __name__ == "__main__":
     import uvicorn

@@ -34,7 +34,8 @@ import SectorMiniSplits from './components/SectorMiniSplits';
 import SectorComparisonChart from './components/SectorComparisonChart';
 import WelcomeDashboard from './components/WelcomeDashboard';
 import RadioPlayer from './components/RadioPlayer';
-import { Play, Sun, Moon, Share2, Check, Radio } from 'lucide-react';
+import RaceStrategist from './components/RaceStrategist';
+import { Play, Sun, Moon, Share2, Check, Radio, Bot } from 'lucide-react';
 
 const API_BASE = window.location.port === '5173' ? 'http://127.0.0.1:8001/api' : '/api';
 
@@ -235,6 +236,8 @@ function App() {
               return { title: "Ideal Lap & Sector Comparison", fullSpan: true, content: <IdealLapRanking year={selectedYear} round={selectedRace} sessionType={selectedSession} allDrivers={drivers} /> };
           case 'AI Prediction Models':
               return { title: "AI Prediction Models", fullSpan: true, content: <AiPredictions year={selectedYear} round={selectedRace} /> };
+          case 'AI Race Strategist':
+              return { title: "AI Race Strategist", fullSpan: true, content: <RaceStrategist year={selectedYear} round={selectedRace} sessionType={selectedSession} drivers={selectedDrivers} allDrivers={drivers} /> };
           case 'Historical Track Map':
               return { title: "Historical Track Map & Flags", fullSpan: true, content: <HistoricalTrackMap year={selectedYear} round={selectedRace} /> };
           case 'Season Start Reaction':
@@ -558,7 +561,7 @@ function App() {
 
         <div className="flex items-center space-x-2">
           <span className="text-blue-400 font-semibold">Drivers:</span>
-          <div className="flex gap-1 items-center">
+          <div className="flex gap-1 items-center flex-wrap">
             {selectedDrivers.map(drv => (
               <span key={drv} onClick={() => removeDriver(drv)} className="bg-gray-800 border border-gray-600 text-gray-200 px-2 py-0.5 rounded-sm text-xs cursor-pointer hover:bg-red-900 transition-colors hover:text-white">
                 {drv} ✕
@@ -566,12 +569,33 @@ function App() {
             ))}
           </div>
           {selectedDrivers.length < drivers.length && (
-            <select className="toolbar-select w-24 ml-2" value="" onChange={e => addDriver(e.target.value)}>
+            <select
+              className="toolbar-select w-28 ml-2"
+              value=""
+              onChange={e => {
+                if (e.target.value === '__ALL__') {
+                  setSelectedDrivers(drivers.map(d => d.abbreviation));
+                } else {
+                  addDriver(e.target.value);
+                }
+              }}
+            >
               <option value="">+ Add...</option>
+              <option value="__ALL__">★ All Drivers</option>
+              <option disabled>──────────</option>
               {drivers.filter(d => !selectedDrivers.includes(d.abbreviation)).map(d => (
                 <option key={d.abbreviation} value={d.abbreviation}>{d.abbreviation}</option>
               ))}
             </select>
+          )}
+          {selectedDrivers.length > 1 && (
+            <button
+              onClick={() => setSelectedDrivers([])}
+              className="text-[10px] text-gray-500 hover:text-red-400 transition-colors px-1.5 py-0.5 rounded border border-transparent hover:border-red-800/50"
+              title="Clear all drivers"
+            >
+              × Clear
+            </button>
           )}
         </div>
 
