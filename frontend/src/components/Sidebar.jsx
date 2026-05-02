@@ -138,6 +138,7 @@ const Sidebar = ({ activeModal, onMenuSelect, onSpawnFloating }) => {
                         <div className="pl-6 border-l border-[#2b2e36] ml-3 mt-1 space-y-0.5">
                             {renderTreeItem('Ideal Lap Ranking', <Target size={14} />)}
                             {renderTreeItem('Sector Mini-Splits', <Map size={14} />)}
+                            {renderTreeItem('Theoretical Fastest Lap', <Zap size={14} className="text-yellow-400" />)}
                         </div>
                     )}
                 </div>

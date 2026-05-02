@@ -1551,6 +1551,161 @@ def get_sector_map(year: int, round: int, session_type: str, drivers: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/theoretical_lap")
+def get_theoretical_lap(year: int, round: int, session_type: str):  # noqa: A002
+    import builtins
+    _r = builtins.round
+    """
+    Compute the 'Fastest Theoretical Lap' for every driver in the session:
+      - Each driver's personal best S1, S2, S3 across ALL their laps
+      - A combined 'fantasy lap' using the absolute best S1+S2+S3 from any driver
+      - Track-map coordinates split into the 3 sectors (from the overall fastest lap)
+    Works best with Q / SQ sessions but also accepts R / FP sessions.
+    """
+    try:  # noqa: E501
+        session = get_parsed_session(year, round, session_type)
+
+        if session.laps is None or session.laps.empty:
+            raise HTTPException(status_code=404, detail="No lap data available for this session.")
+
+        # ── Build results map (team colours) ──────────────────────────────
+        results_map = {}
+        if session.results is not None and not session.results.empty:
+            for _, r in session.results.iterrows():
+                abbr = str(r.get("Abbreviation", ""))
+                results_map[abbr] = {
+                    "team_color": str(r.get("TeamColor", "888888")),
+                    "full_name":  f"{r.get('FirstName','')} {r.get('LastName','')}".strip(),
+                }
+
+        # ── Per-driver best sectors ────────────────────────────────────────
+        all_drv_data = {}
+        for drv in session.laps["Driver"].unique():
+            drv_laps = session.laps.pick_driver(drv).dropna(
+                subset=["Sector1Time", "Sector2Time", "Sector3Time"]
+            )
+            if drv_laps.empty:
+                continue
+
+            # Row with best S1
+            best_s1_row  = drv_laps.loc[drv_laps["Sector1Time"].idxmin()]
+            best_s2_row  = drv_laps.loc[drv_laps["Sector2Time"].idxmin()]
+            best_s3_row  = drv_laps.loc[drv_laps["Sector3Time"].idxmin()]
+
+            s1 = best_s1_row["Sector1Time"].total_seconds()
+            s2 = best_s2_row["Sector2Time"].total_seconds()
+            s3 = best_s3_row["Sector3Time"].total_seconds()
+
+            # Personal actual best lap
+            actual_lap = drv_laps["LapTime"].dropna()
+            actual_best = actual_lap.min().total_seconds() if not actual_lap.empty else None
+
+            info = results_map.get(str(drv), {"team_color": "888888", "full_name": drv})
+            all_drv_data[str(drv)] = {
+                "driver":       str(drv),
+                "full_name":    info["full_name"],
+                "team_color":   info["team_color"],
+                "s1":           _r(s1, 4),
+                "s2":           _r(s2, 4),
+                "s3":           _r(s3, 4),
+                "theoretical":  _r(s1 + s2 + s3, 4),
+                "actual_best":  _r(actual_best, 4) if actual_best else None,
+                "gap_to_actual": _r((s1 + s2 + s3) - actual_best, 4) if actual_best else None,
+            }
+
+        if not all_drv_data:
+            raise HTTPException(status_code=404, detail="No sector data found for any driver.")
+
+        # ── Global fantasy lap ─────────────────────────────────────────────
+        best_s1_drv = min(all_drv_data, key=lambda d: all_drv_data[d]["s1"])
+        best_s2_drv = min(all_drv_data, key=lambda d: all_drv_data[d]["s2"])
+        best_s3_drv = min(all_drv_data, key=lambda d: all_drv_data[d]["s3"])
+
+        fantasy_time = (
+            all_drv_data[best_s1_drv]["s1"]
+            + all_drv_data[best_s2_drv]["s2"]
+            + all_drv_data[best_s3_drv]["s3"]
+        )
+
+        # Mark global best flags on every driver entry
+        for drv, d in all_drv_data.items():
+            d["s1_is_global_best"] = (drv == best_s1_drv)
+            d["s2_is_global_best"] = (drv == best_s2_drv)
+            d["s3_is_global_best"] = (drv == best_s3_drv)
+            d["s1_delta"] = _r(d["s1"] - all_drv_data[best_s1_drv]["s1"], 4)
+            d["s2_delta"] = _r(d["s2"] - all_drv_data[best_s2_drv]["s2"], 4)
+            d["s3_delta"] = _r(d["s3"] - all_drv_data[best_s3_drv]["s3"], 4)
+
+        # ── Track map: sector coordinates from the overall fastest lap ─────
+        track_sectors = {"s1": None, "s2": None, "s3": None}
+        try:
+            fastest_lap = session.laps.dropna(subset=["LapTime"]).loc[
+                session.laps.dropna(subset=["LapTime"])["LapTime"].idxmin()
+            ]
+            tel = fastest_lap.get_telemetry().add_distance()
+
+            s1_end_st = fastest_lap.get("Sector1SessionTime")
+            s2_end_st = fastest_lap.get("Sector2SessionTime")
+
+            if pd.isnull(s1_end_st) or pd.isnull(s2_end_st):
+                # Distance-based fallback
+                md = tel["Distance"].max()
+                s1_mask = tel["Distance"] <= md * 0.333
+                s2_mask = (tel["Distance"] > md * 0.333) & (tel["Distance"] <= md * 0.667)
+                s3_mask = tel["Distance"] > md * 0.667
+            else:
+                t_col = "SessionTime" if "SessionTime" in tel.columns else "Time"
+                t_sec = tel[t_col].dt.total_seconds()
+                s1_t  = s1_end_st.total_seconds() if hasattr(s1_end_st, "total_seconds") else float(s1_end_st)
+                s2_t  = s2_end_st.total_seconds() if hasattr(s2_end_st, "total_seconds") else float(s2_end_st)
+                t0    = t_sec.iloc[0]
+                s1_mask = t_sec <= t0 + (s1_t - t0)
+                s2_mask = (t_sec > t0 + (s1_t - t0)) & (t_sec <= t0 + (s2_t - t0))
+                s3_mask = t_sec > t0 + (s2_t - t0)
+                if s1_mask.sum() < 5 or s3_mask.sum() < 5:
+                    md = tel["Distance"].max()
+                    s1_mask = tel["Distance"] <= md * 0.333
+                    s2_mask = (tel["Distance"] > md * 0.333) & (tel["Distance"] <= md * 0.667)
+                    s3_mask = tel["Distance"] > md * 0.667
+
+            def _seg(mask):
+                seg = tel[mask]
+                return {
+                    "x": seg["X"].replace([np.inf, -np.inf, np.nan], 0.0).tolist(),
+                    "y": seg["Y"].replace([np.inf, -np.inf, np.nan], 0.0).tolist(),
+                }
+
+            track_sectors = {
+                "s1": _seg(s1_mask),
+                "s2": _seg(s2_mask),
+                "s3": _seg(s3_mask),
+            }
+        except Exception as e:
+            logger.warning(f"[theoretical_lap] track sector coords failed: {e}")
+
+        return {
+            "drivers": list(all_drv_data.values()),
+            "fantasy": {
+                "s1_driver": best_s1_drv,
+                "s1_time":   all_drv_data[best_s1_drv]["s1"],
+                "s1_color":  all_drv_data[best_s1_drv]["team_color"],
+                "s2_driver": best_s2_drv,
+                "s2_time":   all_drv_data[best_s2_drv]["s2"],
+                "s2_color":  all_drv_data[best_s2_drv]["team_color"],
+                "s3_driver": best_s3_drv,
+                "s3_time":   all_drv_data[best_s3_drv]["s3"],
+                "s3_color":  all_drv_data[best_s3_drv]["team_color"],
+                "total":     _r(fantasy_time, 4),
+            },
+            "track_sectors": track_sectors,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[theoretical_lap] {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/clear_cache")
 def clear_backend_memory():
     """Clear all RAM-locked session variables to force re-parsing of any stuck datasets."""

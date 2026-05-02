@@ -35,6 +35,7 @@ import SectorComparisonChart from './components/SectorComparisonChart';
 import WelcomeDashboard from './components/WelcomeDashboard';
 import RadioPlayer from './components/RadioPlayer';
 import RaceStrategist from './components/RaceStrategist';
+import TheoreticalLap from './components/TheoreticalLap';
 import { Play, Sun, Moon, Share2, Check, Radio, Bot } from 'lucide-react';
 
 const API_BASE = window.location.port === '5173' ? 'http://127.0.0.1:8001/api' : '/api';
@@ -238,6 +239,8 @@ function App() {
               return { title: "AI Prediction Models", fullSpan: true, content: <AiPredictions year={selectedYear} round={selectedRace} /> };
           case 'AI Race Strategist':
               return { title: "AI Race Strategist", fullSpan: true, content: <RaceStrategist year={selectedYear} round={selectedRace} sessionType={selectedSession} drivers={selectedDrivers} allDrivers={drivers} /> };
+          case 'Theoretical Fastest Lap':
+              return { title: "Fastest Theoretical Lap Calculator", fullSpan: true, content: <TheoreticalLap year={selectedYear} round={selectedRace} sessionType={selectedSession} /> };
           case 'Historical Track Map':
               return { title: "Historical Track Map & Flags", fullSpan: true, content: <HistoricalTrackMap year={selectedYear} round={selectedRace} /> };
           case 'Season Start Reaction':
