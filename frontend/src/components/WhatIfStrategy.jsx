@@ -138,7 +138,7 @@ const WhatIfStrategy = ({ year, round, sessionType, selectedDrivers }) => {
   }
 
   return (
-    <div className="module-card what-if-strategy">
+    <div className="module-card what-if-strategy h-full overflow-y-auto">
       <div className="module-header">
         <h2>"What If" Strategy Simulator</h2>
         <div className="controls">
