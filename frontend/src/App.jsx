@@ -38,6 +38,7 @@ import RaceStrategist from './components/RaceStrategist';
 import TheoreticalLap from './components/TheoreticalLap';
 import CornerAnalysisMode from './components/CornerAnalysisMode';
 import WhatIfStrategy from './components/WhatIfStrategy';
+import WeatherPaceAnalysis from './components/WeatherPaceAnalysis';
 import { Play, Sun, Moon, Share2, Check, Radio, Bot } from 'lucide-react';
 
 const API_BASE = window.location.port === '5173' ? 'http://127.0.0.1:8001/api' : '/api';
@@ -247,6 +248,8 @@ function App() {
               return { title: "Historical Track Map & Flags", fullSpan: true, content: <HistoricalTrackMap year={selectedYear} round={selectedRace} /> };
           case 'Season Start Reaction':
               return { title: "Season Start Reaction", fullSpan: true, content: <SeasonStartReaction year={selectedYear} /> };
+          case 'Weather-Correlated Pace Analysis':
+              return { title: "Weather-Correlated Pace Analysis", fullSpan: true, content: <WeatherPaceAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} /> };
           case 'Corner Analysis Mode':
               return { title: "Corner Analysis Mode — High Fidelity", fullSpan: true, content: <CornerAnalysisMode year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} /> };
           case 'What-If Strategy Simulator':

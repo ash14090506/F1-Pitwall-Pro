@@ -269,7 +269,7 @@ def get_parsed_session(year: int, round: int, session_type: str):
                 
             logger.info(f"[{key}] Pandas is parsing telemetry from cache into RAM for the first time... this will take ~30s...")
             session = fastf1.get_session(year, round, session_type)
-            session.load(telemetry=True, laps=True, weather=False)
+            session.load(telemetry=True, laps=True, weather=True)
             
             # FASTF1 BUG Guard: If FastF1 gracefully choked or failed to fetch valid F1 Live Timing,
             # it might leave `.laps` entirely unloaded. Check before committing broken data to RAM!
@@ -2726,6 +2726,50 @@ def get_simulated_strategy(year: int, session_type: str, driver: str, sim_pit_la
         logger.error(f"[simulate_strategy] Failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/weather_pace")
+def get_weather_pace(year: int, session_type: str, round_number: int = Query(..., alias="round")):
+    try:
+        session = get_parsed_session(year, round_number, session_type)
+        
+        # We need weather data for all quicklaps
+        laps = session.laps.pick_quicklaps().dropna(subset=["LapTime", "Driver", "Compound"])
+        if laps.empty:
+            raise HTTPException(status_code=404, detail="No quicklaps found for this session.")
+            
+        weather_data = laps.get_weather_data()
+        
+        # Combine lap data with weather data
+        laps = laps.reset_index(drop=True)
+        weather_data = weather_data.reset_index(drop=True)
+        
+        laps['TrackTemp'] = weather_data['TrackTemp']
+        laps['AirTemp'] = weather_data['AirTemp']
+        
+        # Get team colors
+        results_map = {}
+        if session.results is not None and not session.results.empty:
+            for _, r in session.results.iterrows():
+                abbr = str(r.get("Abbreviation", ""))
+                results_map[abbr] = {
+                    "team_color": str(r.get("TeamColor", "888888"))
+                }
+                
+        output_data = []
+        for _, row in laps.iterrows():
+            output_data.append({
+                "lap_time": float(row["LapTime"].total_seconds()),
+                "track_temp": float(row["TrackTemp"]),
+                "air_temp": float(row["AirTemp"]),
+                "compound": str(row["Compound"]),
+                "driver": str(row["Driver"]),
+                "lap_number": int(row["LapNumber"]),
+                "team_color": results_map.get(str(row["Driver"]), {}).get("team_color", "888888")
+            })
+            
+        return {"data": output_data}
+    except Exception as e:
+        logger.error(f"[weather_pace] Failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/strategist/ask")
 def strategist_ask(request: StrategistRequest):

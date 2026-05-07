@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronRight, ChevronDown, Activity, Settings, Zap, Map, FileSearch, Target, Gauge, Clock, Radio, ExternalLink, Bot } from 'lucide-react';
+import { ChevronRight, ChevronDown, Activity, Settings, Zap, Map, FileSearch, Target, Gauge, Clock, Radio, ExternalLink, Bot, Sun } from 'lucide-react';
 
 const Sidebar = ({ activeModal, onMenuSelect, onSpawnFloating }) => {
     const [expanded, setExpanded] = useState({ 
@@ -120,6 +120,7 @@ const Sidebar = ({ activeModal, onMenuSelect, onSpawnFloating }) => {
                         <div className="pl-6 border-l border-[#2b2e36] ml-3 mt-1 space-y-0.5">
                             {renderTreeItem('Detailed Lap Analysis', <FileSearch size={14} />)}
                             {renderTreeItem('Lap Time Box Plot', <Activity size={14} />)}
+                            {renderTreeItem('Weather-Correlated Pace Analysis', <Sun size={14} className="text-yellow-400" />)}
                             {renderTreeItem('Throttle Corner Analysis', <Map size={14} />)}
                             {renderTreeItem('Pedal Behavior Analysis', <Activity size={14} />)}
                             {renderTreeItem('Long Run Analysis', <Activity size={14} />)}
