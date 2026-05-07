@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import fastf1
@@ -1302,6 +1302,219 @@ def get_corner_classification(year: int, round: int, session_type: str, drivers:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/corner_analysis")
+def get_corner_analysis(year: int, session_type: str, drivers: str, round_number: int = Query(..., alias="round")):  # noqa: A002
+    """
+    Full Corner Analysis Mode endpoint.
+
+    For each circuit corner (from FastF1 circuit info), and for each driver's
+    fastest lap, returns:
+      - Apex speed (min speed in ±150 m window)
+      - Braking point distance (last brake>10% sample before apex)
+      - Throttle pickup distance (first throttle>50% sample after apex)
+      - Track X/Y for the corner segment (±250 m window)
+      - Full telemetry arrays (speed, brake, throttle, gear, distance) for the
+        segment — used by the Plotly drill-down charts on the frontend
+      - Speed category: Low (<120 km/h), Medium (<180), High (>=180)
+
+    Also returns the global track outline (X/Y) from the session's overall
+    fastest lap for the background map render.
+    """
+    try:
+        session = get_parsed_session(year, round_number, session_type)
+        dlists = [d.strip() for d in drivers.split(",") if d.strip()]
+
+        # ── Circuit corner list ──────────────────────────────────────────────
+        corner_list = []
+        try:
+            circuit = session.get_circuit_info()
+            if circuit is not None and hasattr(circuit, "corners") and circuit.corners is not None:
+                for _, c in circuit.corners.iterrows():
+                    corner_list.append({
+                        "number":   int(c.get("Number", 0)),
+                        "letter":   str(c.get("Letter", "")),
+                        "distance": float(c.get("Distance", 0.0)),
+                        "angle":    float(c.get("Angle", 0.0)) if "Angle" in c else 0.0,
+                    })
+        except Exception as ce:
+            logger.warning(f"[corner_analysis] circuit info failed: {ce}")
+
+        if not corner_list:
+            raise HTTPException(status_code=404, detail="No corner data available for this circuit/session.")
+
+        # ── Results map (team colours) ───────────────────────────────────────
+        results_map = {}
+        if session.results is not None and not session.results.empty:
+            for _, r in session.results.iterrows():
+                abbr = str(r.get("Abbreviation", ""))
+                results_map[abbr] = {
+                    "team_color": str(r.get("TeamColor", "888888")),
+                    "full_name":  f"{r.get('FirstName', '')} {r.get('LastName', '')}".strip(),
+                }
+
+        # ── Global track outline from overall fastest lap ────────────────────
+        track_x, track_y = [], []
+        corner_positions = {}  # corner_number -> {x, y} on track map
+        try:
+            overall_fastest = session.laps.dropna(subset=["LapTime"]).loc[
+                session.laps.dropna(subset=["LapTime"])["LapTime"].idxmin()
+            ]
+            outline_tel = overall_fastest.get_telemetry().add_distance()
+            track_x = outline_tel["X"].replace([np.inf, -np.inf, np.nan], 0.0).tolist()
+            track_y = outline_tel["Y"].replace([np.inf, -np.inf, np.nan], 0.0).tolist()
+            dist_arr_glob = outline_tel["Distance"].values
+            x_arr_glob    = outline_tel["X"].values
+            y_arr_glob    = outline_tel["Y"].values
+
+            # Snap each corner to its nearest track point
+            for c in corner_list:
+                idx = int(np.argmin(np.abs(dist_arr_glob - c["distance"])))
+                corner_positions[c["number"]] = {
+                    "x": float(x_arr_glob[idx]) if x_arr_glob[idx] == x_arr_glob[idx] else 0.0,
+                    "y": float(y_arr_glob[idx]) if y_arr_glob[idx] == y_arr_glob[idx] else 0.0,
+                }
+        except Exception as te:
+            logger.warning(f"[corner_analysis] track outline failed: {te}")
+
+        # ── Per-driver per-corner analysis ───────────────────────────────────
+        driver_data = []
+        for drv in dlists:
+            drv_laps = session.laps.pick_driver(drv).dropna(subset=["LapTime"])
+            if drv_laps.empty:
+                continue
+            try:
+                fastest = drv_laps.pick_fastest()
+                if fastest.empty or pd.isnull(fastest.get("LapTime")):
+                    continue
+                tel = fastest.get_telemetry().add_distance()
+            except Exception:
+                continue
+
+            if tel is None or tel.empty:
+                continue
+
+            dist_arr  = tel["Distance"].values
+            speed_arr = tel["Speed"].values
+            brake_arr = tel["Brake"].values        # 0-100 pressure
+            throt_arr = tel["Throttle"].values     # 0-100 %
+            gear_arr  = tel["nGear"].values if "nGear" in tel.columns else np.zeros(len(dist_arr))
+            x_arr     = tel["X"].values if "X" in tel.columns else np.zeros(len(dist_arr))
+            y_arr     = tel["Y"].values if "Y" in tel.columns else np.zeros(len(dist_arr))
+
+            info = results_map.get(str(drv), {"team_color": "888888", "full_name": drv})
+
+            corners_out = []
+            for corner in corner_list:
+                cdist = corner["distance"]
+                SEG_HALF = 250.0   # ±250 m full segment window
+                APEX_HALF = 150.0  # ±150 m apex search window
+
+                seg_mask  = (dist_arr >= cdist - SEG_HALF) & (dist_arr <= cdist + SEG_HALF)
+                apex_mask = (dist_arr >= cdist - APEX_HALF) & (dist_arr <= cdist + APEX_HALF)
+
+                if not apex_mask.any():
+                    continue
+
+                # ── Apex speed ──────────────────────────────────────────────
+                apex_idx_local = int(np.argmin(speed_arr[apex_mask]))
+                apex_indices   = np.where(apex_mask)[0]
+                apex_idx_global = apex_indices[apex_idx_local]
+                apex_speed  = float(speed_arr[apex_idx_global])
+                apex_dist   = float(dist_arr[apex_idx_global])
+
+                # Speed category
+                if apex_speed < 120:
+                    category = "Low"
+                elif apex_speed < 180:
+                    category = "Medium"
+                else:
+                    category = "High"
+
+                # ── Braking point ────────────────────────────────────────────
+                # Last point BEFORE apex where brake pressure > 10%
+                brake_start_dist = None
+                pre_apex_mask = (dist_arr >= cdist - SEG_HALF) & (dist_arr <= apex_dist)
+                pre_idx = np.where(pre_apex_mask & (brake_arr > 10))[0]
+                if len(pre_idx) > 0:
+                    brake_start_dist = float(dist_arr[pre_idx[0]])
+
+                # ── Throttle pickup point ────────────────────────────────────
+                # First point AFTER apex where throttle > 50%
+                throttle_start_dist = None
+                post_apex_mask = (dist_arr > apex_dist) & (dist_arr <= cdist + SEG_HALF)
+                post_idx = np.where(post_apex_mask & (throt_arr > 50))[0]
+                if len(post_idx) > 0:
+                    throttle_start_dist = float(dist_arr[post_idx[0]])
+
+                # ── Segment extraction ───────────────────────────────────────
+                def _clean(arr):
+                    return [float(v) if (v == v and not np.isinf(v)) else 0.0 for v in arr]
+
+                seg_dist   = dist_arr[seg_mask]
+                # Make distance relative to corner start for cleaner chart x-axis
+                rel_dist   = seg_dist - (cdist - SEG_HALF) if len(seg_dist) > 0 else seg_dist
+
+                corners_out.append({
+                    "corner_number":        corner["number"],
+                    "letter":               corner["letter"],
+                    "corner_dist":          cdist,
+                    "apex_speed":           round(apex_speed, 2),
+                    "apex_dist":            round(apex_dist, 2),
+                    "apex_dist_rel":        round(float(apex_dist - (cdist - SEG_HALF)), 2),
+                    "brake_start_dist":     round(brake_start_dist, 2) if brake_start_dist is not None else None,
+                    "brake_start_dist_rel": round(float(brake_start_dist - (cdist - SEG_HALF)), 2) if brake_start_dist is not None else None,
+                    "brake_distance":       round(float(apex_dist - brake_start_dist), 2) if brake_start_dist is not None else None,
+                    "throttle_start_dist":     round(throttle_start_dist, 2) if throttle_start_dist is not None else None,
+                    "throttle_start_dist_rel": round(float(throttle_start_dist - (cdist - SEG_HALF)), 2) if throttle_start_dist is not None else None,
+                    "speed_category":       category,
+                    # Telemetry segment arrays (for Plotly charts)
+                    "seg_dist":     _clean(rel_dist),
+                    "seg_speed":    _clean(speed_arr[seg_mask]),
+                    "seg_brake":    _clean(brake_arr[seg_mask]),
+                    "seg_throttle": _clean(throt_arr[seg_mask]),
+                    "seg_gear":     _clean(gear_arr[seg_mask]),
+                    # Track X/Y for zoomed map
+                    "seg_x":        _clean(x_arr[seg_mask]),
+                    "seg_y":        _clean(y_arr[seg_mask]),
+                    # Corner position on global track map
+                    "track_x":      corner_positions.get(corner["number"], {}).get("x", 0.0),
+                    "track_y":      corner_positions.get(corner["number"], {}).get("y", 0.0),
+                })
+
+            driver_data.append({
+                "driver":     str(drv),
+                "full_name":  info["full_name"],
+                "team_color": info["team_color"],
+                "corners":    corners_out,
+            })
+
+        if not driver_data:
+            raise HTTPException(status_code=404, detail="No telemetry data found for any selected driver.")
+
+        # ── Compute global best apex speed per corner ────────────────────────
+        # Used by frontend to show ★ best driver badge on each corner card
+        global_best = {}  # corner_number -> {driver, apex_speed}
+        for drv_d in driver_data:
+            for c in drv_d["corners"]:
+                cn = c["corner_number"]
+                if cn not in global_best or c["apex_speed"] < global_best[cn]["apex_speed"]:
+                    global_best[cn] = {"driver": drv_d["driver"], "apex_speed": c["apex_speed"]}
+
+        return {
+            "drivers":      driver_data,
+            "corner_list":  corner_list,
+            "global_best":  global_best,
+            "track_x":      track_x,
+            "track_y":      track_y,
+            "corner_positions": corner_positions,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[corner_analysis] {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/telemetry/delta_track")
 def get_delta_track(year: int, round: int, session_type: str, ref_driver: str, comp_driver: str):
     """Return X/Y track coordinates with per-point time delta for color-coded track map overlay."""
@@ -2347,6 +2560,171 @@ def _build_session_context(year: int, round: int, session_type: str, drivers: li
         lines.append("  [Weather data unavailable]")
 
     return '\n'.join(lines)
+
+
+@app.get("/api/simulate_strategy")
+def get_simulated_strategy(year: int, session_type: str, driver: str, sim_pit_lap: int, sim_compound: str, round_number: int = Query(..., alias="round")):
+    """
+    Simulates a race trace (lap times and positions) for a driver if they pitted on a different lap.
+    Dynamically calculates tyre degradation (slope) per compound across all drivers.
+    """
+    try:
+        session = get_parsed_session(year, round_number, session_type)
+        if session.laps is None or session.laps.empty:
+            raise HTTPException(status_code=404, detail="Laps data not available.")
+            
+        # 1. Dynamically calculate degradation rates and base pace per compound
+        clean_laps = session.laps.dropna(subset=['LapTime', 'Compound', 'TyreLife']).copy()
+        clean_laps['LapTimeSec'] = clean_laps['LapTime'].dt.total_seconds()
+        
+        # Filter outliers (VSC, SC, Pit in/out laps) - simple filter: LapTimeSec < 1.15 * median
+        median_time = clean_laps['LapTimeSec'].median()
+        clean_laps = clean_laps[clean_laps['LapTimeSec'] < median_time * 1.15]
+        
+        compounds = clean_laps['Compound'].unique()
+        compound_stats = {}
+        for c in compounds:
+            c_laps = clean_laps[clean_laps['Compound'] == c]
+            if len(c_laps) > 5:
+                X = c_laps['TyreLife'].values.reshape(-1, 1)
+                y = c_laps['LapTimeSec'].values
+                model = LinearRegression().fit(X, y)
+                deg_rate = model.coef_[0]
+                base_pace = model.intercept_
+                compound_stats[str(c)] = {"deg_rate": max(0.01, float(deg_rate)), "base_pace": float(base_pace)}
+            else:
+                compound_stats[str(c)] = {"deg_rate": 0.05, "base_pace": float(median_time)}
+                
+        if sim_compound not in compound_stats:
+            compound_stats[sim_compound] = {"deg_rate": 0.05, "base_pace": float(median_time)}
+
+        # 2. Get actual cumulative race traces for all drivers
+        all_traces = {}
+        target_actual_trace = None
+        max_laps = 0
+        
+        for drv in session.laps['Driver'].unique():
+            drv_laps = session.laps.pick_driver(drv).dropna(subset=['LapTime']).sort_values('LapNumber')
+            if drv_laps.empty: continue
+            
+            trace = []
+            cum_time = 0.0
+            
+            for _, row in drv_laps.iterrows():
+                lt = row['LapTime'].total_seconds()
+                cum_time += lt
+                trace.append({"lap": int(row['LapNumber']), "cum_time": float(cum_time), "compound": str(row['Compound'])})
+                
+            all_traces[str(drv)] = trace
+            if len(trace) > max_laps: max_laps = len(trace)
+            if str(drv) == driver:
+                target_actual_trace = trace
+
+        if not target_actual_trace:
+            raise HTTPException(status_code=404, detail=f"Driver {driver} not found or has no laps.")
+
+        # 3. Simulate target driver
+        target_s1_compound = target_actual_trace[0]["compound"] if len(target_actual_trace) > 0 else "MEDIUM"
+        if target_s1_compound not in compound_stats:
+            target_s1_compound = list(compound_stats.keys())[0] if compound_stats else "MEDIUM"
+            
+        driver_clean_laps = clean_laps[(clean_laps['Driver'] == driver) & (clean_laps['Compound'] == target_s1_compound)]
+        if len(driver_clean_laps) > 0:
+            driver_mean = driver_clean_laps['LapTimeSec'].mean()
+            driver_mean_life = driver_clean_laps['TyreLife'].mean()
+            expected_mean = compound_stats[target_s1_compound]["base_pace"] + (driver_mean_life * compound_stats[target_s1_compound]["deg_rate"])
+            driver_pace_offset = driver_mean - expected_mean
+        else:
+            driver_pace_offset = 0.0
+
+        sim_trace = []
+        sim_cum_time = 0.0
+        pit_loss = 22.0
+        
+        s1_deg = compound_stats.get(target_s1_compound, {"deg_rate": 0.05})["deg_rate"]
+        s1_base = compound_stats.get(target_s1_compound, {"base_pace": float(median_time)})["base_pace"] + driver_pace_offset
+        
+        s2_deg = compound_stats.get(sim_compound, {"deg_rate": 0.05})["deg_rate"]
+        s2_base = compound_stats.get(sim_compound, {"base_pace": float(median_time)})["base_pace"] + driver_pace_offset
+
+        target_total_laps = len(target_actual_trace)
+        actual_lap_times = {t["lap"]: (t["cum_time"] - target_actual_trace[i-1]["cum_time"] if i > 0 else t["cum_time"]) for i, t in enumerate(target_actual_trace)}
+        
+        actual_pit_lap = next((t["lap"] for i, t in enumerate(target_actual_trace) if i > 0 and t["compound"] != target_actual_trace[i-1]["compound"]), target_total_laps)
+
+        for lap in range(1, target_total_laps + 1):
+            if lap < sim_pit_lap:
+                if lap < actual_pit_lap:
+                    lt = actual_lap_times.get(lap, s1_base + (lap * s1_deg))
+                else:
+                    lt = s1_base + (lap * s1_deg)
+            elif lap == sim_pit_lap:
+                lt = s1_base + (lap * s1_deg) + pit_loss
+            else:
+                tyre_age = lap - sim_pit_lap
+                lt = s2_base + (tyre_age * s2_deg)
+                
+            sim_cum_time += lt
+            sim_trace.append({"lap": lap, "cum_time": float(sim_cum_time), "compound": target_s1_compound if lap <= sim_pit_lap else sim_compound})
+
+        # 4. Calculate Positions
+        output_actual = []
+        output_sim = []
+        
+        for lap in range(1, max_laps + 1):
+            lap_standings_actual = []
+            lap_standings_sim = []
+            
+            for drv, trace in all_traces.items():
+                entry = next((t for t in trace if t["lap"] == lap), None)
+                if entry:
+                    lap_standings_actual.append({"driver": drv, "cum_time": entry["cum_time"]})
+                    if drv == driver:
+                        sim_entry = next((t for t in sim_trace if t["lap"] == lap), None)
+                        if sim_entry:
+                            lap_standings_sim.append({"driver": drv, "cum_time": sim_entry["cum_time"]})
+                    else:
+                        lap_standings_sim.append({"driver": drv, "cum_time": entry["cum_time"]})
+                        
+            lap_standings_actual.sort(key=lambda x: x["cum_time"])
+            lap_standings_sim.sort(key=lambda x: x["cum_time"])
+            
+            act_pos = next((i + 1 for i, x in enumerate(lap_standings_actual) if x["driver"] == driver), None)
+            sim_pos = next((i + 1 for i, x in enumerate(lap_standings_sim) if x["driver"] == driver), None)
+            
+            act_time = next((x["cum_time"] for x in lap_standings_actual if x["driver"] == driver), None)
+            sim_time = next((x["cum_time"] for x in lap_standings_sim if x["driver"] == driver), None)
+            leader_time = lap_standings_actual[0]["cum_time"] if lap_standings_actual else 0
+            
+            if act_pos is not None:
+                output_actual.append({
+                    "lap": lap,
+                    "position": act_pos,
+                    "delta_to_leader": float(act_time - leader_time),
+                    "cum_time": float(act_time)
+                })
+            
+            if sim_pos is not None:
+                output_sim.append({
+                    "lap": lap,
+                    "position": sim_pos,
+                    "delta_to_leader": float(sim_time - leader_time),
+                    "cum_time": float(sim_time)
+                })
+
+        return {
+            "driver": driver,
+            "target_s1_compound": target_s1_compound,
+            "sim_compound": sim_compound,
+            "actual_pit_lap": actual_pit_lap,
+            "sim_pit_lap": sim_pit_lap,
+            "actual_trace": output_actual,
+            "simulated_trace": output_sim,
+            "compound_stats": compound_stats
+        }
+    except Exception as e:
+        logger.error(f"[simulate_strategy] Failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/strategist/ask")

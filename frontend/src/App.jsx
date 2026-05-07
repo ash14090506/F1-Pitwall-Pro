@@ -36,6 +36,8 @@ import WelcomeDashboard from './components/WelcomeDashboard';
 import RadioPlayer from './components/RadioPlayer';
 import RaceStrategist from './components/RaceStrategist';
 import TheoreticalLap from './components/TheoreticalLap';
+import CornerAnalysisMode from './components/CornerAnalysisMode';
+import WhatIfStrategy from './components/WhatIfStrategy';
 import { Play, Sun, Moon, Share2, Check, Radio, Bot } from 'lucide-react';
 
 const API_BASE = window.location.port === '5173' ? 'http://127.0.0.1:8001/api' : '/api';
@@ -245,6 +247,10 @@ function App() {
               return { title: "Historical Track Map & Flags", fullSpan: true, content: <HistoricalTrackMap year={selectedYear} round={selectedRace} /> };
           case 'Season Start Reaction':
               return { title: "Season Start Reaction", fullSpan: true, content: <SeasonStartReaction year={selectedYear} /> };
+          case 'Corner Analysis Mode':
+              return { title: "Corner Analysis Mode — High Fidelity", fullSpan: true, content: <CornerAnalysisMode year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} /> };
+          case 'What-If Strategy Simulator':
+              return { title: '"What If" Strategy Simulator', fullSpan: true, content: <WhatIfStrategy year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} /> };
           default:
               return { title: modalName, fullSpan: true, content: <div className="flex flex-col items-center justify-center h-full w-full bg-[#0b0d10] text-[#64748b]"><div className="w-16 h-16 mb-4 flex items-center justify-center rounded-full bg-[#1b1d24] border border-[#2b2e36]"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></div><div className="text-lg font-bold text-white mb-1">Under Construction</div><div className="text-sm">Module <strong className="text-red-400">{modalName}</strong> is planned for a future update.</div></div> };
       }

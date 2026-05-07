@@ -154,19 +154,22 @@ const Sidebar = ({ activeModal, onMenuSelect, onSpawnFloating }) => {
                             {renderTreeItem('Straight Line Speed', <Gauge size={14} />)}
                             {renderTreeItem('Brake & Accel Performance', <Zap size={14} />)}
                             {renderTreeItem('Corner Classification', <Map size={14} />)}
+                            {renderTreeItem('Corner Analysis Mode', <Activity size={14} className="text-pink-400" />)}
                         </div>
                     )}
                 </div>
 
-                {/* 6. AI Prediction Models */}
+                {/* 6. Strategy & Predictions */}
                 <div className="mt-2">
                     <div className="flex items-center px-2 py-1.5 cursor-pointer hover:bg-[#2b2e36]" onClick={() => toggle('sec6')}>
                         {expanded['sec6'] ? <ChevronDown size={14} className="mr-1" /> : <ChevronRight size={14} className="mr-1" />}
-                        <span className="font-semibold text-blue-400">6. AI Prediction Models</span>
+                        <span className="font-semibold text-blue-400">6. Strategy & Predictions</span>
                     </div>
                     {expanded['sec6'] && (
                         <div className="pl-6 border-l border-[#2b2e36] ml-3 mt-1 space-y-0.5">
                             {renderTreeItem('AI Prediction Models', <Target size={14} />)}
+                            {renderTreeItem('AI Race Strategist', <Bot size={14} />)}
+                            {renderTreeItem('What-If Strategy Simulator', <Activity size={14} className="text-blue-400" />)}
                         </div>
                     )}
                 </div>
