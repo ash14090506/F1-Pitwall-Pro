@@ -552,6 +552,87 @@ def get_laps_summary(year: int, round: int, session_type: str, drivers: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/driver_style")
+def get_driver_style(year: int, round: int, session_type: str, drivers: str):
+    """Retrieve telemetry-based personality signature per driver (for radar/spider charts)."""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        driver_list = [d.strip().upper() for d in drivers.split(',') if d.strip()]
+        
+        fingerprints = []
+        for drv in driver_list:
+            laps = session.laps.pick_driver(drv)
+            if laps.empty:
+                continue
+                
+            fastest_lap = laps.pick_fastest()
+            if pd.isnull(fastest_lap.get('LapTime')):
+                continue
+                
+            # 1. Pace Consistency
+            valid_laps = laps[laps['IsAccurate'] == True]
+            if len(valid_laps) > 2:
+                std_dev = valid_laps['LapTime'].dt.total_seconds().std()
+                consistency_score = max(0.0, min(100.0, 100.0 - (std_dev * 50.0)))
+            else:
+                consistency_score = 50.0
+                
+            try:
+                tel = fastest_lap.get_telemetry()
+                tel['Time_s'] = tel['Time'].dt.total_seconds()
+                dt = tel['Time_s'].diff()
+                dv = tel['Speed'].diff() / 3.6
+                tel['Lon_Accel'] = (dv / dt) / 9.81
+                tel['Lon_Accel'] = tel['Lon_Accel'].fillna(0)
+                
+                dx = tel['X'].diff()
+                dy = tel['Y'].diff()
+                dx_smooth = dx.rolling(window=5, center=True, min_periods=1).mean()
+                dy_smooth = dy.rolling(window=5, center=True, min_periods=1).mean()
+                d2x = dx_smooth.diff()
+                d2y = dy_smooth.diff()
+                R = ((dx_smooth**2 + dy_smooth**2)**1.5) / (np.abs(dx_smooth * d2y - dy_smooth * d2x) + 1e-6)
+                v_ms = tel['Speed'] / 3.6
+                tel['Lat_Accel'] = (v_ms**2 / R) / 9.81
+                tel['Lat_Accel'] = tel['Lat_Accel'].clip(-6.0, 6.0).fillna(0)
+            except Exception as e:
+                logger.error(f"Failed to calculate style telemetry for {drv}: {e}")
+                continue
+
+            # 2. Braking Aggressiveness (Max negative Lon_Accel)
+            min_lon = tel['Lon_Accel'].min()
+            braking_score = max(0.0, min(100.0, (abs(min_lon) / 6.0) * 100.0))
+            
+            # 3. Throttle Commitment (% of lap at full throttle >= 99%)
+            full_throttle_pct = (len(tel[tel['Throttle'] >= 99]) / len(tel)) * 100.0
+            throttle_score = max(0.0, min(100.0, (full_throttle_pct - 50.0) * (100.0 / 30.0)))
+            
+            # 4. Cornering G-Force (Average Lat_Accel when > 1g)
+            cornering = tel[tel['Lat_Accel'] > 1.0]['Lat_Accel']
+            if len(cornering) > 0:
+                avg_corner_g = cornering.mean()
+                corner_score = max(0.0, min(100.0, (avg_corner_g - 1.0) * (100.0 / 3.0)))
+            else:
+                corner_score = 0.0
+                
+            # 5. Top Speed
+            top_speed = tel['Speed'].max()
+            speed_score = max(0.0, min(100.0, (top_speed - 280.0) * (100.0 / 70.0)))
+            
+            fingerprints.append({
+                "driver": drv,
+                "consistency": float(round(consistency_score, 1)),
+                "braking": float(round(braking_score, 1)),
+                "throttle": float(round(throttle_score, 1)),
+                "cornering": float(round(corner_score, 1)),
+                "speed": float(round(speed_score, 1))
+            })
+            
+        return {"fingerprints": fingerprints}
+    except Exception as e:
+        logger.error(f"Error in /api/driver_style: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/weather")
 def get_weather_data(year: int, round: int, session_type: str):
     """Retrieve environmental weather data over the session time."""

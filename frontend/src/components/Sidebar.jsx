@@ -156,6 +156,7 @@ const Sidebar = ({ activeModal, onMenuSelect, onSpawnFloating }) => {
                             {renderTreeItem('Brake & Accel Performance', <Zap size={14} />)}
                             {renderTreeItem('Corner Classification', <Map size={14} />)}
                             {renderTreeItem('Corner Analysis Mode', <Activity size={14} className="text-pink-400" />)}
+                            {renderTreeItem('Driver Style Fingerprint', <Target size={14} className="text-pink-400" />)}
                         </div>
                     )}
                 </div>
