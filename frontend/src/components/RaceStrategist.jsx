@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Bot, Send, Trash2, Zap, ChevronDown, Loader } from 'lucide-react';
+import { Bot, Send, Trash2, Zap, ChevronDown, Loader, Mic } from 'lucide-react';
 
 const API_BASE = window.location.port === '5173' ? 'http://127.0.0.1:8001/api' : '/api';
 
@@ -71,6 +71,7 @@ const RaceStrategist = ({ year, round, sessionType, drivers = [], allDrivers = [
     const [input, setInput] = useState('');
     const [isStreaming, setIsStreaming] = useState(false);
     const [showSuggestions, setShowSuggestions] = useState(true);
+    const [isListening, setIsListening] = useState(false);
     const bottomRef = useRef(null);
     const inputRef = useRef(null);
     const abortRef = useRef(null);
@@ -179,6 +180,49 @@ const RaceStrategist = ({ year, round, sessionType, drivers = [], allDrivers = [
             setIsStreaming(false);
         }
     }, [isStreaming, messages, year, round, sessionType, drivers]);
+
+    // Setup Speech Recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = useRef(null);
+
+    useEffect(() => {
+        if (SpeechRecognition) {
+            recognition.current = new SpeechRecognition();
+            recognition.current.continuous = false;
+            recognition.current.interimResults = false;
+            recognition.current.lang = 'en-US';
+
+            recognition.current.onstart = () => {
+                setIsListening(true);
+            };
+
+            recognition.current.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                setInput(transcript);
+                // Optionally auto-send: sendQuestion(transcript);
+                // But letting the user review it might be better, we will auto-send for seamless experience:
+                setTimeout(() => sendQuestion(transcript), 300);
+            };
+
+            recognition.current.onerror = (event) => {
+                console.error('Speech recognition error', event.error);
+                setIsListening(false);
+            };
+
+            recognition.current.onend = () => {
+                setIsListening(false);
+            };
+        }
+    }, [sendQuestion]);
+
+    const toggleListening = () => {
+        if (isListening) {
+            recognition.current?.stop();
+        } else {
+            setInput('');
+            recognition.current?.start();
+        }
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -296,6 +340,23 @@ const RaceStrategist = ({ year, round, sessionType, drivers = [], allDrivers = [
                     className="flex-1 resize-none bg-[#0b0d10] border border-[#2b2e36] rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition-all disabled:opacity-50 min-h-[38px] max-h-[120px]"
                     style={{ fieldSizing: 'content' }}
                 />
+                
+                {SpeechRecognition && (
+                    <button
+                        type="button"
+                        onClick={toggleListening}
+                        disabled={isStreaming}
+                        className={`flex-shrink-0 w-9 h-9 rounded-lg transition-all flex items-center justify-center shadow-md ${
+                            isListening 
+                                ? 'bg-red-500/20 text-red-500 animate-pulse border border-red-500/50' 
+                                : 'bg-[#1b1d24] text-gray-400 hover:text-white border border-[#2b2e36] hover:border-gray-500'
+                        }`}
+                        title="Voice Query"
+                    >
+                        <Mic size={14} />
+                    </button>
+                )}
+
                 <button
                     type="submit"
                     disabled={!input.trim() || isStreaming}

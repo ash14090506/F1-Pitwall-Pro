@@ -125,6 +125,7 @@ const Sidebar = ({ activeModal, onMenuSelect, onSpawnFloating }) => {
                             {renderTreeItem('Pedal Behavior Analysis', <Activity size={14} />)}
                             {renderTreeItem('Long Run Analysis', <Activity size={14} />)}
                             {renderTreeItem('Tyre Degradation', <Activity size={14} />)}
+                            {renderTreeItem('Tyre Life Heat Map', <Target size={14} className="text-cyan-400" />)}
                         </div>
                     )}
                 </div>
@@ -176,14 +177,15 @@ const Sidebar = ({ activeModal, onMenuSelect, onSpawnFloating }) => {
                     )}
                 </div>
 
-                {/* 7. Multi-Season Analysis */}
+                {/* 7. Multi-Session Analysis */}
                 <div className="mt-2">
                     <div className="flex items-center px-2 py-1.5 cursor-pointer hover:bg-[#2b2e36]" onClick={() => toggle('sec7')}>
                         {expanded['sec7'] ? <ChevronDown size={14} className="mr-1" /> : <ChevronRight size={14} className="mr-1" />}
-                        <span className="font-semibold text-yellow-400">7. Multi-Season Analysis</span>
+                        <span className="font-semibold text-yellow-400">7. Multi-Session Analysis</span>
                     </div>
                     {expanded['sec7'] && (
                         <div className="pl-6 border-l border-[#2b2e36] ml-3 mt-1 space-y-0.5">
+                            {renderTreeItem('Multi-Session Comparison', <Target size={14} className="text-yellow-400" />)}
                             {renderTreeItem('Historical Track Map', <Map size={14} />)}
                             {renderTreeItem('Season Start Reaction', <Zap size={14} />)}
                         </div>

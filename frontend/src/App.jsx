@@ -40,7 +40,14 @@ import CornerAnalysisMode from './components/CornerAnalysisMode';
 import WhatIfStrategy from './components/WhatIfStrategy';
 import WeatherPaceAnalysis from './components/WeatherPaceAnalysis';
 import DriverFingerprint from './components/DriverFingerprint';
-import { Play, Sun, Moon, Share2, Check, Radio, Bot } from 'lucide-react';
+import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
+import RaceIncidentTimeline from './components/RaceIncidentTimeline';
+import TyreLifeHeatMap from './components/TyreLifeHeatMap';
+import MultiSessionComparison from './components/MultiSessionComparison';
+import WhatIfStrategy from './components/WhatIfStrategy';
+import * as htmlToImage from 'html-to-image';
+import { jsPDF } from 'jspdf';
+import { Play, Sun, Moon, Share2, Check, Radio, Bot, Keyboard } from 'lucide-react';
 
 const API_BASE = window.location.port === '5173' ? 'http://127.0.0.1:8001/api' : '/api';
 
@@ -68,6 +75,7 @@ function App() {
   const [focusedFloatingWindow, setFocusedFloatingWindow] = useState(null);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [shareToast, setShareToast] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   // Team radio state
   const [radioClips, setRadioClips] = useState([]);
@@ -139,6 +147,85 @@ function App() {
     });
   }, []);
 
+  const exportDashboard = useCallback(async (format = 'png') => {
+    const node = document.querySelector('.window-grid');
+    if (!node) {
+      alert('No dashboard to export.');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const dataUrl = await htmlToImage.toPng(node, { 
+        quality: 1,
+        backgroundColor: '#0b0d10' // match the dark theme background
+      });
+      
+      if (format === 'png') {
+        const link = document.createElement('a');
+        link.download = `pitwall-pro-${selectedYear}-${selectedRace}-${selectedSession}.png`;
+        link.href = dataUrl;
+        link.click();
+      } else if (format === 'pdf') {
+        const pdf = new jsPDF({
+          orientation: 'landscape',
+          unit: 'px',
+          format: [node.offsetWidth, node.offsetHeight]
+        });
+        pdf.addImage(dataUrl, 'PNG', 0, 0, node.offsetWidth, node.offsetHeight);
+        pdf.save(`pitwall-pro-${selectedYear}-${selectedRace}-${selectedSession}.pdf`);
+      }
+    } catch (err) {
+      console.error('Export failed:', err);
+      alert('Export failed. Check console for details.');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedYear, selectedRace, selectedSession]);
+
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA';
+      if (isInput) return;
+
+      switch (e.key) {
+        case '?':
+          e.preventDefault();
+          setShowShortcuts(prev => !prev);
+          break;
+        case 'e':
+        case 'E':
+          e.preventDefault();
+          exportDashboard('png');
+          break;
+        case '[':
+        case ']': {
+          e.preventDefault();
+          if (drivers.length === 0) return;
+          
+          const direction = e.key === '[' ? -1 : 1;
+          const currentDrv = selectedDrivers.length > 0 ? selectedDrivers[0] : drivers[0].abbreviation;
+          const currentIndex = drivers.findIndex(d => d.abbreviation === currentDrv);
+          
+          if (currentIndex !== -1) {
+            let nextIndex = (currentIndex + direction) % drivers.length;
+            if (nextIndex < 0) nextIndex = drivers.length - 1;
+            setSelectedDrivers([drivers[nextIndex].abbreviation]);
+          } else {
+            setSelectedDrivers([drivers[0].abbreviation]);
+          }
+          break;
+        }
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [drivers, selectedDrivers, exportDashboard]);
+
   // Playback States
   const [playbackIndex, setPlaybackIndex] = useState(0);
   const [maxPlaybackIndex, setMaxPlaybackIndex] = useState(0);
@@ -195,6 +282,8 @@ function App() {
               return { title: "Sector Comparison Chart", fullSpan: true, content: <SectorComparisonChart year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} /> };
           case 'Tyre Degradation':
               return { title: "Tyre Degradation Curves — Stint Analysis", fullSpan: true, content: <TyreDegradation year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} /> };
+          case 'Tyre Life Heat Map':
+              return { title: "Tyre Life Heat Map", fullSpan: true, content: <TyreLifeHeatMap year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} /> };
           case 'Lap Delta Overlay':
               return { title: "Lap Delta — Gap vs. Distance + Track Map", fullSpan: true, content: <LapDeltaOverlay year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} /> };
           case 'Pit Strategy Gantt':
@@ -249,6 +338,8 @@ function App() {
               return { title: "Historical Track Map & Flags", fullSpan: true, content: <HistoricalTrackMap year={selectedYear} round={selectedRace} /> };
           case 'Season Start Reaction':
               return { title: "Season Start Reaction", fullSpan: true, content: <SeasonStartReaction year={selectedYear} /> };
+          case 'Multi-Session Comparison':
+              return { title: "Multi-Session Pace Comparison", fullSpan: true, content: <MultiSessionComparison year={selectedYear} round={selectedRace} sessionType={selectedSession} selectedDrivers={selectedDrivers} allDrivers={drivers} /> };
           case 'Weather-Correlated Pace Analysis':
               return { title: "Weather-Correlated Pace Analysis", fullSpan: true, content: <WeatherPaceAnalysis year={selectedYear} round={selectedRace} sessionType={selectedSession} /> };
           case 'Corner Analysis Mode':
@@ -472,6 +563,14 @@ function App() {
     }
   }, [selectedDrivers, selectedRace, selectedYear, selectedSession, readNDJSONStream]);
 
+  const handleIncidentClick = useCallback((lapNum) => {
+    if (!lapNum) return;
+    const selections = {};
+    selectedDrivers.forEach(drv => {
+        selections[drv] = lapNum;
+    });
+    handleLoadSpecificLaps(selections);
+  }, [selectedDrivers, handleLoadSpecificLaps]);
 
   const removeDriver = (drv) => {
       setSelectedDrivers(prev => prev.filter(d => d !== drv));
@@ -493,7 +592,8 @@ function App() {
           { label: 'Save Workspace', action: saveWorkspace },
           { label: 'Load Workspace', action: loadWorkspace },
           'divider',
-          { label: 'Export Layout', action: () => alert('Exporting dashboard layout...') },
+          { label: 'Export as PNG (E)', action: () => exportDashboard('png') },
+          { label: 'Export as PDF', action: () => exportDashboard('pdf') },
           'divider',
           { label: 'Reload Framework', action: () => window.location.reload() }
         ])}
@@ -527,6 +627,15 @@ function App() {
             {shareToast ? <span className="text-green-400">Copied!</span> : <span>Share</span>}
           </button>
 
+          {/* Shortcuts Help */}
+          <button
+            onClick={() => setShowShortcuts(true)}
+            title="View Keyboard Shortcuts (?)"
+            className="p-1 rounded-sm transition-colors hover:bg-[#2b2e36] text-gray-400 hover:text-white"
+          >
+            <Keyboard size={12} />
+          </button>
+
           {/* Theme toggle */}
           <button
             onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
@@ -540,6 +649,9 @@ function App() {
       
       {/* Global Transparent Overlay to close menus */}
       {activeMenu && <div className="fixed inset-0 z-40" onClick={() => setActiveMenu(null)} />}
+
+      {/* Keyboard Shortcuts Modal */}
+      {showShortcuts && <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />}
 
       {/* Main Toolbar */}
       <div className="h-12 min-h-[48px] flex items-center bg-[#16181d] border-b border-[#2b2e36] px-4 space-x-4 text-xs whitespace-nowrap overflow-x-auto">
@@ -716,8 +828,15 @@ function App() {
         </div>
       </div>
       {/* Playback Controls + Radio Footer */}
-      <div className="flex items-center bg-[#1b1d24] border-t border-[#2b2e36] shrink-0">
-        <div className="flex-1 min-w-0">
+      <div className="flex flex-col shrink-0 w-full z-50">
+        <RaceIncidentTimeline 
+           year={selectedYear} 
+           round={selectedRace} 
+           sessionType={selectedSession} 
+           onIncidentClick={handleIncidentClick} 
+        />
+        <div className="flex items-center bg-[#1b1d24] border-t border-[#2b2e36] shrink-0 w-full">
+          <div className="flex-1 min-w-0">
           <PlaybackControls 
              maxIndex={maxPlaybackIndex} 
              playbackIndex={playbackIndex} 

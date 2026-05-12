@@ -552,6 +552,81 @@ def get_laps_summary(year: int, round: int, session_type: str, drivers: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/simulate_strategy")
+def simulate_strategy(year: int, round: int, session_type: str, driver: str, sim_pit_lap: int, sim_compound: str):
+    """Simple Undercut Simulation Model"""
+    try:
+        session = get_parsed_session(year, round, session_type)
+        laps = session.laps.pick_driver(driver)
+        if laps.empty:
+            raise HTTPException(status_code=404, detail="No lap data found")
+            
+        actual_trace = []
+        cum_time = 0.0
+        actual_pit_lap = 60
+        
+        for idx, lap in laps.iterrows():
+            lap_num = int(lap["LapNumber"]) if pd.notnull(lap["LapNumber"]) else 0
+            if lap_num == 0: continue
+            
+            pos = int(lap["Position"]) if ("Position" in lap and pd.notnull(lap["Position"])) else 1
+            lt = lap["LapTime"].total_seconds() if pd.notnull(lap["LapTime"]) else 90.0
+            cum_time += lt
+            
+            actual_trace.append({"lap": lap_num, "position": pos, "cum_time": cum_time})
+            
+            if "PitInTime" in lap and pd.notnull(lap["PitInTime"]):
+                actual_pit_lap = lap_num
+                
+        simulated_trace = []
+        sim_cum_time = 0.0
+        
+        for i, t in enumerate(actual_trace):
+            lap_num = t["lap"]
+            pos = t["position"]
+            lt = 0.0
+            
+            if i == 0:
+                lt = actual_trace[0]["cum_time"]
+            else:
+                lt = actual_trace[i]["cum_time"] - actual_trace[i-1]["cum_time"]
+                
+            sim_pos = pos
+            if lap_num == sim_pit_lap:
+                lt += 20.0
+                sim_pos += 3
+            elif lap_num == actual_pit_lap:
+                lt -= 20.0
+                
+            if sim_pit_lap < actual_pit_lap:
+                if sim_pit_lap < lap_num <= actual_pit_lap:
+                    lt -= 1.5
+                    sim_pos -= 1
+            else:
+                if actual_pit_lap < lap_num <= sim_pit_lap:
+                    lt += 1.0
+                    
+            sim_cum_time += lt
+            
+            time_delta = t["cum_time"] - sim_cum_time
+            if time_delta > 2.0:
+                sim_pos -= int(time_delta / 2.0)
+            elif time_delta < -2.0:
+                sim_pos += int(abs(time_delta) / 2.0)
+                
+            sim_pos = max(1, min(20, sim_pos))
+            simulated_trace.append({"lap": lap_num, "position": sim_pos, "cum_time": sim_cum_time})
+            
+        return {
+            "actual_pit_lap": actual_pit_lap,
+            "target_s1_compound": sim_compound,
+            "actual_trace": actual_trace,
+            "simulated_trace": simulated_trace
+        }
+    except Exception as e:
+        logger.error(f"Failed simulate_strategy: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/driver_style")
 def get_driver_style(year: int, round: int, session_type: str, drivers: str):
     """Retrieve telemetry-based personality signature per driver (for radar/spider charts)."""
@@ -716,6 +791,7 @@ def get_race_control_messages(year: int, round: int, session_type: str):
         for _, msg in rcm_safe.iterrows():
             messages.append({
                 "time": float(msg["Time_s"]) if pd.notnull(msg["Time_s"]) else 0.0,
+                "lap": int(msg.get("Lap")) if "Lap" in msg and pd.notnull(msg["Lap"]) else None,
                 "category": str(msg.get("Category", "Unknown")),
                 "message": str(msg.get("Message", "Unknown")),
                 "flag": str(msg.get("Flag", "Unknown")),
